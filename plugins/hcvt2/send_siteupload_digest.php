@@ -2,11 +2,15 @@
 /*define("NOAUTH", true);
 define("CRON_PAGE", $_SERVER['PHP_SELF']);*/
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 8/20/14
  * Time: 9:29 AM
  */
+/**
+ * debug
+ */
+$debug = $_GET['debug'] ? (bool)$_GET['debug'] : false;
 /**
  * includes
  */
@@ -19,6 +23,7 @@ require APP_PATH_CLASSES . "Message.php";
  */
 $allowed_pids = array('26');
 REDCap::allowProjects($allowed_pids);
+Kint::enabled($debug);
 /**
  * initialize variables
  */
@@ -47,9 +52,12 @@ if ($actions_result) {
 				$redcap_data_access_group
 			)
 		);
-		if (!db_query("UPDATE target_email_actions SET digest_date = '$today' WHERE action_id = '$action_id'")) {
-			error_log("ERROR: failed to update target_email_actions.digest_date");
+		if (!$debug) {
+			if (!db_query("UPDATE target_email_actions SET digest_date = '$today' WHERE action_id = '$action_id'")) {
+				error_log("ERROR: failed to update target_email_actions.digest_date");
+			}
 		}
+		d($actions_row);
 	}
 	if ($item_count > 0) {
 		/**
@@ -73,7 +81,13 @@ if ($actions_result) {
 		/**
 		 * set up email for sending
 		 */
-		$to = array('Ken Bergquist' => 'kbergqui@email.unc.edu', 'Lasheaka McClellan' => 'Lasheaka.McClellan@medicine.ufl.edu', 'Tyre Johnson' => 'tyre.johnson@medicine.ufl.edu', 'Dona-Marie Mintz' => 'Dona-Marie.Mintz@medicine.ufl.edu');
+		$to = array(
+			'Ken Bergquist' => 'kbergqui@email.unc.edu',
+			'Lasheaka McClellan' => 'Lasheaka.McClellan@medicine.ufl.edu',
+			'Tyre Johnson' => 'tyre.johnson@medicine.ufl.edu',
+			'Dona-Marie Mintz' => 'Dona-Marie.Mintz@medicine.ufl.edu',
+			'Nicholas Slater' => 'Nicholas.Slater@medicine.ufl.edu'
+		);
 		//$to = array('Ken Bergquist' => 'kbergqui@email.unc.edu');
 		$from = array('Ken Bergquist' => 'kbergqui@email.unc.edu');
 		$subject = "HCV-TARGET 2 Site Source Upload Notification";
@@ -87,10 +101,13 @@ if ($actions_result) {
 		foreach ($to as $name => $address) {
 			$email->setTo($address);
 			$email->setToName($name);
-			if (!$email->send()) {
-				error_log("ERROR: Failed to send Site Source Upload digest");
+			if (!$debug) {
+				if (!$email->send()) {
+					error_log("ERROR: Failed to send Site Source Upload digest");
+				}
 			}
 		}
+		d($email);
 	} else {
 		error_log("NOTICE: No site source uploads were available to be digested");
 	}

@@ -1,4 +1,4 @@
-<?php 
+<?php
 /*****************************************************************************************
 **  REDCap is only available through a license agreement with Vanderbilt University
 ******************************************************************************************/
@@ -20,18 +20,17 @@ require_once APP_PATH_DOCROOT . "Surveys/survey_functions.php";
 	<meta http-equiv="Cache-Control" content="no-cache">
 	<meta http-equiv="Pragma" content="no-cache">
 	<meta http-equiv="expires" content="0">
-	<?php print ($isIE ? '<meta http-equiv="X-UA-Compatible" content="IE=edge">' : '') ?>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="shortcut icon" href="<?php echo APP_PATH_IMAGES ?>favicon.ico" type="image/x-icon">
 	<link rel="apple-touch-icon-precomposed" href="<?php echo APP_PATH_IMAGES ?>apple-touch-icon.png">
-	<link rel="stylesheet" type="text/css" href="<?php echo APP_PATH_CSS ?>smoothness/jquery-ui-<?php echo JQUERYUI_VERSION ?>.custom.css" media="screen,print">
+	<link rel="stylesheet" type="text/css" href="<?php echo APP_PATH_CSS ?>jquery-ui.min.css" media="screen,print">
 	<link rel="stylesheet" type="text/css" href="<?php echo APP_PATH_CSS ?>style.css" media="screen,print">
+	<?php if (PAGE == 'DataEntry/index.php') { ?><link rel="stylesheet" type="text/css" href="<?php echo APP_PATH_CSS ?>survey_text_very_large.css" media="screen and (max-width: 767px)"><?php } ?>
 	<script type="text/javascript" src="<?php echo APP_PATH_JS ?>base.js"></script>
-	<script type="text/javascript" src="<?php echo APP_PATH_JS ?>underscore-min.js"></script>
-	<script type="text/javascript" src="<?php echo APP_PATH_JS ?>backbone-min.js"></script>
-	<script type="text/javascript" src="<?php echo APP_PATH_JS ?>RedCapUtil.js"></script>
 	<!-- DataTables -->
 	<link rel="stylesheet" type="text/css"
-	      href="<?php echo APP_PATH_WEBROOT_FULL ?>plugins/includes/js/datatables/media/css/jquery.dataTables.min.css">
+	      href="<?php echo APP_PATH_WEBROOT_FULL ?>plugins/includes/js/datatables/media/css/jquery.dataTables.css">
 	<link rel="stylesheet" type="text/css"
 	      href="<?php echo APP_PATH_WEBROOT_FULL ?>plugins/includes/js/datatables/extensions/FixedHeader/css/fixedHeader.dataTables.min.css">
 	<script type="text/javascript" charset="utf8"
@@ -47,11 +46,10 @@ require_once APP_PATH_DOCROOT . "Surveys/survey_functions.php";
 <body>
 <noscript>
 	<div class="red" style="margin-top:50px;">
-		<img src="<?php echo APP_PATH_IMAGES ?>exclamation.png" class="imgfix"> <b>WARNING: JavaScript Disabled</b><br><br>
-		It has been determined that your web browser currently does not have JavaScript enabled, 
-		which prevents this webpage from functioning correctly. You CANNOT use this page until JavaScript is enabled. 
-		You will find instructions for enabling JavaScript for your web browser by 
-		<a href="http://www.google.com/support/bin/answer.py?answer=23852" target="_blank" style="text-decoration:underline;">clicking here</a>. 
+		<img src="<?php echo APP_PATH_IMAGES ?>exclamation.png"> <b>WARNING: JavaScript Disabled</b><br><br>
+		Your web browser currently does not have JavaScript enabled, so you will not be able to use this webpage.
+		You will find instructions for enabling JavaScript for your web browser by
+		<a href="http://www.google.com/support/bin/answer.py?answer=23852" target="_blank" style="text-decoration:underline;">clicking here</a>.
 		Once you have enabled JavaScript, you may refresh this page or return back here to begin using this page.
 	</div>
 </noscript>
@@ -69,28 +67,8 @@ require_once APP_PATH_DOCROOT . "Surveys/survey_functions.php";
 </style>
 <?php
 
-// IE CSS Hack - Render the following CSS if using IE
-if ($isIE) {
-	?>
-	<style type="text/css">
-	input[type="radio"],input[type="checkbox"] { margin: 0 }
-	/* Fix IE's fieldset background issue */
-	fieldset { position: relative; }
-	legend {
-		position:absolute;
-		top: -1em;
-	}
-	fieldset {
-		position: relative;
-		margin-top:1.5em;
-		padding-top:0.5em;
-	}
-	</style>
-	<?php
-}
-		
 // iOS CSS Hack for rendering drop-down menus with a background image
-if ($isIOS) 
+if ($isIOS)
 {
 	print  '<style type="text/css">select { padding-right:14px !important;background-image:url("'.APP_PATH_IMAGES.'arrow_state_grey_expanded.png") !important; background-position:right !important; background-repeat:no-repeat !important; }</style>';
 }
@@ -98,7 +76,7 @@ if ($isIOS)
 // Render Javascript variables needed on all pages for various JS functions
 renderJsVars();
 
-// STATS: Check if need to report institutional stats to REDCap consortium 
+// STATS: Check if need to report institutional stats to REDCap consortium
 checkReportStats();
 
 // Do CSRF token check (using PHP with jQuery)
@@ -106,10 +84,10 @@ createCsrfToken();
 
 // Initialize auto-logout popup timer and logout reset timer listener
 initAutoLogout();
-	
+
 // Render divs holding javascript form-validation text (when error occurs), so they get translated on the page
 renderValidationTextDivs();
-		
+
 // Render hidden divs used by showProgress() javascript function
 renderShowProgressDivs();
 
@@ -141,7 +119,7 @@ if ($date_deleted != "")
 	// Notice div that project was deleted
 	print RCView::simpleDialog(RCView::div(array('style'=>'color:#C00000;'), $deleteProjDialog),$lang['global_03'].$lang['colon']." ".$lang['bottom_67'],"deleted_note");
 	// Hidden "undelete project" div
-	print RCView::simpleDialog("", $lang['control_center_378'], 'undelete_project_dialog');	
+	print RCView::simpleDialog("", $lang['control_center_378'], 'undelete_project_dialog');
 	?>
 	<script type="text/javascript">
 	function openDelProjDialog(){
@@ -157,7 +135,7 @@ if ($date_deleted != "")
 
 
 // Project status label
-$statusLabel = '<div>'.$lang['edit_project_58'].'&nbsp; ';	
+$statusLabel = '<div>'.$lang['edit_project_58'].'&nbsp; ';
 // Set icon/text for project status
 if ($status == '1') {
 	$statusLabel .= '<b style="color:green;">'.$lang['global_30'].'</b></div>';
@@ -174,21 +152,31 @@ if ($status == '1') {
  * LOGO & LOGOUT
  */
 $logoHtml = "<div id='menu-div'>
-				<div class='menubox' style='text-align:center;padding:7px 10px 0px 7px;'>
-					<a href='".APP_PATH_WEBROOT_PARENT."index.php?action=myprojects" . (($auth_meth == "none" && $auth_meth != $auth_meth_global && $auth_meth_global != "shibboleth") ? "&logout=1" : "") . "'><img src='".APP_PATH_IMAGES."redcaplogo_small.gif' title='REDCap' style='height:54px;'></a>
-					<div style='text-align:left;font-size:10px;font-family:tahoma;color:#888;margin:10px -10px 5px -7px;border-top:1px solid #ddd;padding:0 0 6px 5px;'>
-						<img src='".APP_PATH_IMAGES."lock_small_disable.gif' class='imgfix' style='top:5px;'> 
+				<div class='menubox' style='padding:0px 10px 0px 7px;'>
+					<div id='project-menu-logo' style='text-align:center;padding:5px 0;border-bottom:1px solid #ddd;'>
+						<a href='".APP_PATH_WEBROOT_PARENT."index.php?action=myprojects" . (($auth_meth == "none" && $auth_meth != $auth_meth_global && $auth_meth_global != "shibboleth") ? "&logout=1" : "") . "'
+							><img src='".APP_PATH_IMAGES."redcaplogo_small.gif' title='REDCap' style='height:54px;'></a>
+					</div>
+					<div style='font-size:10px;font-family:tahoma;color:#888;margin:3px -10px 7px -2px;'>
+						<img src='".APP_PATH_IMAGES."lock_small_disable.gif' style='top:5px;'>
 						{$lang['bottom_01']} <span style='font-weight:bold;color:#555;'>$userid</span>
-						" . ($auth_meth == "none" ? "" : ((strlen($userid) < 14 && $auth_meth != "none") ? " &nbsp;|&nbsp; <span>" : "<br><span style='padding:1px 0 0;'><img src='".APP_PATH_IMAGES."cross_small_circle_gray.png' class='imgfix' style='top:5px;'> ")."<a href='".PAGE_FULL."?".$_SERVER['QUERY_STRING']."&logout=1' style='font-size:10px;font-family:tahoma;'>{$lang['bottom_02']}</a>") . "
+						".($auth_meth == "none"
+							? ""
+							: 	((strlen($userid) < 14 && $auth_meth != "none")
+									? " &nbsp;|&nbsp; <span>"
+									: "<br><span style='padding:1px 0 0;'><img src='".APP_PATH_IMAGES."cross_small_circle_gray.png' style='top:5px;'> "
+								) .
+								"<a href='".PAGE_FULL."?".$_SERVER['QUERY_STRING']."&logout=1' style='font-size:10px;font-family:tahoma;'>{$lang['bottom_02']}</a></span>"
+						  )."
 					</div>
 					<div class='hang'>
-						<img src='".APP_PATH_IMAGES."redcap_icon.gif' class='imgfix2'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT_PARENT."index.php?action=myprojects" . (($auth_meth == "none" && $auth_meth != $auth_meth_global && $auth_meth_global != "shibboleth") ? "&logout=1" : "") . "'>{$lang['bottom_03']}</a><br>
+						<img src='".APP_PATH_IMAGES."redcap_icon.gif'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT_PARENT."index.php?action=myprojects" . (($auth_meth == "none" && $auth_meth != $auth_meth_global && $auth_meth_global != "shibboleth") ? "&logout=1" : "") . "'>{$lang['bottom_03']}</a><br>
 					</div>
 					<div class='hang'>
-						<img src='".APP_PATH_IMAGES."house.png' class='imgfix'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."index.php?pid=$project_id'>{$lang['bottom_44']}</a><br>
+						<img src='".APP_PATH_IMAGES."house.png'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."index.php?pid=$project_id'>{$lang['bottom_44']}</a><br>
 					</div>
 					<div class='hang'>
-						<img src='".APP_PATH_IMAGES."clipboard_task.png' class='imgfix'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."ProjectSetup/index.php?pid=$project_id'>{$lang['app_17']}</a><br>
+						<img src='".APP_PATH_IMAGES."clipboard_task.png'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."ProjectSetup/index.php?pid=$project_id'>{$lang['app_17']}</a><br>
 					</div>
 					<div style='text-align:left;font-size:10px;font-family:tahoma;color:#666;padding:5px 0 3px 23px;'>
 						$statusLabel
@@ -208,48 +196,50 @@ if ($status < 2 && !empty($user_rights))
 	// Set text for Invite Participants link
 	$invitePart = "";
 	if ($surveys_enabled && $user_rights['participants']) {
-		$invitePart = "<div class='hang' style='position:relative;left:-8px;'><img src='".APP_PATH_IMAGES."survey_participants.gif' class='imgfix'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."Surveys/invite_participants.php?pid=$project_id'>".$lang['app_22']."</a></div>";
-		if ($status < 1) {		
+		$invitePart = "<div class='hang' style='position:relative;left:-8px;'><img src='".APP_PATH_IMAGES."survey_participants.gif'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."Surveys/invite_participants.php?pid=$project_id'>".$lang['app_22']."</a></div>";
+		if ($status < 1) {
 			$invitePart .=  "<div class='menuboxsub'>- ".$lang['invite_participants_01']."</div>";
 		}
 	}
 	// Set panel title text
+	$menu_id = 'projMenuDataCollection';
+	$dataEntryCollapsed = Project::getMenuCollapseState($project_id, $menu_id);
+	$imgCollapsed = $dataEntryCollapsed ? "toggle-expand.png" : "toggle-collapse.png";
+	$dataEntryTitle =  "<div style='float:left'>{$lang['bottom_47']}</div>
+						<div class='opacity50 projMenuToggle' id='$menu_id'>"
+						. RCView::a(array('href'=>'javascript:;'),
+							RCView::img(array('src'=>$imgCollapsed, 'class'=>($isIE ? 'opacity50' : '')))
+						  ) . "
+					   </div>";
 	if ($status < 1 && $user_rights['design']) {
-		$dataEntryTitle = "<table cellspacing='0' width='100%'>
-							<tr>
-								<td>{$lang['bottom_47']}</td>
-								<td id='menuLnkEditInstr' class='opacity50' style='text-align:right;padding-right:10px;'>"
-									. RCView::img(array('src'=>'pencil_small2.png','class'=>'imgfix1 '.($isIE ? 'opacity50' : '')))
-									. RCView::a(array('href'=>APP_PATH_WEBROOT."Design/online_designer.php?pid=$project_id",'style'=>'font-family:arial;font-size:11px;text-decoration:underline;color:#000066;font-weight:normal;'), $lang['bottom_70']) . "
-								</td>
-							</tr>
-						   </table>";
-	} else {
-		$dataEntryTitle = $lang['bottom_47'];
+		$dataEntryTitle .= "<div class='opacity50' id='menuLnkEditInstr' style='float:right;margin-right:5px;'>"
+							. RCView::img(array('src'=>'pencil_small2.png','class'=>''.($isIE ? 'opacity50' : '')))
+							. RCView::a(array('href'=>APP_PATH_WEBROOT."Design/online_designer.php?pid=$project_id",'style'=>'font-family:arial;font-size:11px;text-decoration:underline;color:#000066;font-weight:normal;'), $lang['bottom_70'])
+						. "</div>";
 	}
-	
+
 	## DATA COLLECTION SECTION
 	// Invite Participants
 	$dataEntry .= $invitePart;
-	
+
 	// Scheduling
 	if ($repeatforms && $scheduling) {
-		$dataEntry .= "<div class='hang' style='position:relative;'><img src='".APP_PATH_IMAGES."calendar_plus.png' class='imgfix'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."Calendar/scheduling.php?pid=$project_id'>".$lang['global_25']."</a></div>";
-		if ($status < 1) {		
+		$dataEntry .= "<div class='hang' style='position:relative;'><img src='".APP_PATH_IMAGES."calendar_plus.png'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."Calendar/scheduling.php?pid=$project_id'>".$lang['global_25']."</a></div>";
+		if ($status < 1) {
 			$dataEntry .=  "<div class='menuboxsub'>- ".$lang['bottom_19']."</div>";
 		}
 	}
-	
+
 	## DATA STATUS GRID
-	$dataEntry .= "<div class='hang' style='position:relative;'><img src='".APP_PATH_IMAGES."application_view_icons.png' class='imgfix'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."DataEntry/record_status_dashboard.php?pid=$project_id'>{$lang['global_91']}</a></div>";
-	if ($status < 1) {		
+	$dataEntry .= "<div class='hang' style='position:relative;'><img src='".APP_PATH_IMAGES."application_view_icons.png'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."DataEntry/record_status_dashboard.php?pid=$project_id'>{$lang['global_91']}</a></div>";
+	if ($status < 1) {
 		$dataEntry .=  "<div class='menuboxsub' style='position:relative;'>- ".$lang['bottom_60']."</div>";
 	}
-	
+
 	## Display link for manage page if using multiple time-points (Longitudinal Module)
 	$addEditRecordPage = "";
-	// If user is on grid page or data entry page and record is selected, make grid icon a link back to grid page 
-	$gridlink = "<img src='".APP_PATH_IMAGES."blog_pencil.gif' class='imgfix'>";
+	// If user is on grid page or data entry page and record is selected, make grid icon a link back to grid page
+	$gridlink = "<img src='".APP_PATH_IMAGES."blog_pencil.gif'>";
 	if (!$longitudinal) {
 		// Point to first form that user has access to
 		foreach (array_keys($Proj->forms) as $this_form) {
@@ -265,25 +255,28 @@ if ($status < 2 && !empty($user_rights))
 						$gridlink&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."$addEditRecordPage' style='color:#800000'>".
 							(($user_rights['record_create'] && ($user_rights['forms'][$Proj->firstForm] == '1' || $user_rights['forms'][$Proj->firstForm] == '3')) ? $lang['bottom_62'] : $lang['bottom_72'])."</a>
 						</div>";
-		if ($status < 1) {		
+		if ($status < 1) {
 			$dataEntry .=  "<div class='menuboxsub' style='position:relative;'>- ".
 							(($user_rights['record_create'] && ($user_rights['forms'][$Proj->firstForm] == '1' || $user_rights['forms'][$Proj->firstForm] == '3')) ? $lang['bottom_64'] : $lang['bottom_73'])."</div>";
 		}
 	}
-	
+
 	//Get all info for determining which forms to show on menu
 	$visit_forms = array();
-	if ($longitudinal && isset($fetched)) 
+	if ($longitudinal && isset($fetched))
 	{
-		foreach ($Proj->eventsForms[$_GET['event_id']] as $this_form) {
-			$visit_forms[$this_form] = "";
+		if(isset($_GET['event_id']))
+		{
+			foreach ($Proj->eventsForms[$_GET['event_id']] as $this_form) {
+				$visit_forms[$this_form] = "";
+			}
 		}
 	}
-	
+
 	// If showing Scheduling OR Invite Participant links OR viewing a record in longitudinal...
-	if ((isset($_GET['id']) && PAGE == "DataEntry/grid.php") 
+	if ((isset($_GET['id']) && PAGE == "DataEntry/grid.php")
 		|| (isset($fetched) && PAGE == "DataEntry/index.php")
-		|| !$longitudinal) 
+		|| !$longitudinal)
 	{
 		// Show record name on left-hand menu (if a record is pulled up)
 		$record_label = "";
@@ -294,7 +287,7 @@ if ($status < 2 && !empty($user_rights))
 			if (PAGE == "DataEntry/grid.php") {
 				$fetched = $_GET['id'];
 			}
-			$record_display = RCView::b(RCView::escape($_GET['id']));
+			$record_display = RCView::b(RCView::escape(isset($_GET['id']) ? $_GET['id'] : ''));
 			// Get Custom Record Label and Secondary Unique Field values (if applicable)
 			$this_custom_record_label_secondary_pk = Records::getCustomRecordLabelsSecondaryFieldAllRecords(addDDEending($fetched), false, getArm(), true);
 			if ($this_custom_record_label_secondary_pk != '') {
@@ -303,15 +296,15 @@ if ($status < 2 && !empty($user_rights))
 			// DISPLAY RECORD NAME: Set full string for record name with prepended label (e.g., Study ID 202)
 			if ($longitudinal) {
 				// Longitudinal project: Display record name as link and "select other record" link
-				$record_label = RCView::div(array('style'=>'padding:0 0 4px;color:#800000;font-size:12px;'), 
+				$record_label = RCView::div(array('style'=>'padding:0 0 4px;color:#800000;font-size:12px;'),
 									RCView::div(array('style'=>'float:left;'),
-										RCView::a(array('style'=>'color:#800000;','href'=>APP_PATH_WEBROOT."DataEntry/grid.php?pid=$project_id&id=$fetched&arm=".getArm()), 
-											RCView::img(array('src'=>'application_view_tile.png','class'=>'imgfix')) .
+										RCView::a(array('style'=>'color:#800000;','href'=>APP_PATH_WEBROOT."DataEntry/grid.php?pid=$project_id&id=$fetched&arm=".getArm()),
+											RCView::img(array('src'=>'application_view_tile.png')) .
 											strip_tags(label_decode($table_pk_label)) . " " . $record_display
 										)
 									) .
 									RCView::div(array('style'=>'float:right;line-height:18px;'),
-										RCView::a(array('id'=>'menuLnkChooseOtherRec','class'=>'opacity50','style'=>'color:#000066;vertical-align:middle;text-decoration:underline;font-size:10px;','href'=>APP_PATH_WEBROOT."DataEntry/grid.php?pid=$project_id"), 
+										RCView::a(array('id'=>'menuLnkChooseOtherRec','class'=>'opacity50','style'=>'color:#000066;vertical-align:middle;text-decoration:underline;font-size:10px;','href'=>APP_PATH_WEBROOT."DataEntry/grid.php?pid=$project_id"),
 											$lang['bottom_63']
 										)
 									) .
@@ -319,12 +312,12 @@ if ($status < 2 && !empty($user_rights))
 								);
 			} else {
 				// Classic project: Display record name and "select other record" link
-				$record_label = RCView::div(array('style'=>'padding:0 0 4px;color:#800000;font-size:12px;'), 
+				$record_label = RCView::div(array('style'=>'padding:0 0 4px;color:#800000;font-size:12px;'),
 									RCView::div(array('style'=>'float:left;font-family:arial;'),
 										strip_tags(label_decode($table_pk_label)) . " " . $record_display
 									) .
 									RCView::div(array('style'=>'float:right;'),
-										RCView::a(array('id'=>'menuLnkChooseOtherRec','class'=>'opacity50','style'=>'color:#000066;vertical-align:middle;text-decoration:underline;font-size:10px;','href'=>APP_PATH_WEBROOT."DataEntry/index.php?pid=$project_id&page={$_GET['page']}"), 
+										RCView::a(array('id'=>'menuLnkChooseOtherRec','class'=>'opacity50','style'=>'color:#000066;vertical-align:middle;text-decoration:underline;font-size:10px;','href'=>APP_PATH_WEBROOT."DataEntry/index.php?pid=$project_id&page={$_GET['page']}"),
 											$lang['bottom_63']
 										)
 									) .
@@ -332,19 +325,19 @@ if ($status < 2 && !empty($user_rights))
 								);
 			}
 		}
-		
+
 		// Get event description for this event
 		$event_label = "";
-		if ($longitudinal && isset($_GET['event_id']) && is_numeric($_GET['event_id'])) 
+		if ($longitudinal && isset($_GET['event_id']) && is_numeric($_GET['event_id']))
 		{
 			$event_label = "<div style='padding:1px 0 5px;'>
 								{$lang['bottom_23']}&nbsp;
 								<span style='color:#800000;font-weight:bold;'>".RCView::escape(strip_tags($Proj->eventInfo[$_GET['event_id']]['name_ext']))."</span>
 							</div>";
 		}
-		
+
 		if ($addEditRecordPage != "") {
-			$dataEntry .=  "<div class='menuboxsub' style='margin:12px 0 2px;border-top:1px dashed #aaa;text-indent:0;padding-top:5px;font-size:10px;'>
+			$dataEntry .=  "<div class='menuboxsub' style='margin:8px 0 0;border-top:1px dashed #aaa;text-indent:0;padding-top:5px;font-size:10px;'>
 								$record_label
 								$event_label
 								" . ((!$longitudinal || (PAGE == "DataEntry/index.php" && $longitudinal)) ? $lang['global_57'] . $lang['colon'] : "") . "
@@ -359,24 +352,24 @@ if ($status < 2 && !empty($user_rights))
 	$locked_forms = array();
 
 	//For lock/unlock records and e-signatures, show locks by any forms that are locked (if a record is pulled up on data entry page)
-	if (PAGE == "DataEntry/index.php" && isset($fetched)) 
+	if (PAGE == "DataEntry/index.php" && isset($fetched))
 	{
 		$entry_num = isset($entry_num) ? $entry_num : "";
 		// Lock records
-		$sql = "select form_name, timestamp from redcap_locking_data where project_id = $project_id and event_id = {$_GET['event_id']} 
+		$sql = "select form_name, timestamp from redcap_locking_data where project_id = $project_id and event_id = {$_GET['event_id']}
 				and record = '" . prep($fetched.$entry_num). "'";
 		$q = db_query($sql);
-		while ($row = db_fetch_array($q)) 
+		while ($row = db_fetch_array($q))
 		{
-			$locked_forms[$row['form_name']] = " <img id='formlock-{$row['form_name']}' src='".APP_PATH_IMAGES."lock_small.png' title='".cleanHtml($lang['bottom_59'])." " . DateTimeRC::format_ts_from_ymd($row['timestamp']) . "'>";	
+			$locked_forms[$row['form_name']] = " <img id='formlock-{$row['form_name']}' src='".APP_PATH_IMAGES."lock_small.png' title='".cleanHtml($lang['bottom_59'])." " . DateTimeRC::format_ts_from_ymd($row['timestamp']) . "'>";
 		}
 		// E-signatures
-		$sql = "select form_name, timestamp from redcap_esignatures where project_id = $project_id and event_id = {$_GET['event_id']} 
+		$sql = "select form_name, timestamp from redcap_esignatures where project_id = $project_id and event_id = {$_GET['event_id']}
 				and record = '" . prep($fetched.$entry_num). "'";
 		$q = db_query($sql);
-		while ($row = db_fetch_array($q)) 
+		while ($row = db_fetch_array($q))
 		{
-			$this_esignts = " <img id='formesign-{$row['form_name']}' src='".APP_PATH_IMAGES."tick_shield_small.png' title='" . cleanHtml($lang['data_entry_224'] . " " . DateTimeRC::format_ts_from_ymd($row['timestamp'])) . "'>";	
+			$this_esignts = " <img id='formesign-{$row['form_name']}' src='".APP_PATH_IMAGES."tick_shield_small.png' title='" . cleanHtml($lang['data_entry_224'] . " " . DateTimeRC::format_ts_from_ymd($row['timestamp'])) . "'>";
 			if (isset($locked_forms[$row['form_name']])) {
 				$locked_forms[$row['form_name']] .= $this_esignts;
 			} else {
@@ -391,7 +384,7 @@ if ($status < 2 && !empty($user_rights))
 
 	## LOCK / UNLOCK RECORDS
 	//If user has ability to lock a record, give option to lock it for all forms (if record is pulled up on data entry page)
-	if ($user_rights['lock_record_multiform'] && $user_rights['lock_record'] > 0 && PAGE == "DataEntry/index.php" && isset($fetched)) 
+	if ($user_rights['lock_record_multiform'] && $user_rights['lock_record'] > 0 && PAGE == "DataEntry/index.php" && isset($fetched))
 	{
 		//Adjust if double data entry for display in pop-up
 		if ($double_data_entry && $user_rights['double_data'] != '0') {
@@ -414,7 +407,7 @@ if ($status < 2 && !empty($user_rights))
 		//Show link "Lock all forms"
 		if ($show_locked_link && $hidden_edit) {
 			$dataEntry .=  "<div style='text-align:left;padding: 6px 0px 2px 0px;'>
-								<img src='".APP_PATH_IMAGES."lock.png' class='imgfix'> 
+								<img src='".APP_PATH_IMAGES."lock.png'>
 								<a style='color:#A86700;font-weight:bold;font-size:12px' href='javascript:;' onclick=\"
 									lockUnlockForms('".cleanHtml($fetched2)."','".cleanHtml($fetched)."','{$_GET['event_id']}','0','0','lock');
 									return false;
@@ -424,97 +417,107 @@ if ($status < 2 && !empty($user_rights))
 		//Show link "Unlock all forms"
 		if ($show_unlocked_link && $hidden_edit) {
 			$dataEntry .=  "<div style='text-align:left;padding: 6px 0px 2px 0px;'>
-								<img src='".APP_PATH_IMAGES."lock_open.png' class='imgfix'> 
+								<img src='".APP_PATH_IMAGES."lock_open.png'>
 								<a style='color:#666;font-weight:bold;font-size:12px' href='javascript:;' onclick=\"
 									lockUnlockForms('".cleanHtml($fetched2)."','".cleanHtml($fetched)."','{$_GET['event_id']}','0','0','unlock');
 									return false;
 								\">{$lang['bottom_41']}</a>
 							</div>";
 		}
-		
+
 	}
 
 	$dataEntry .= "</div>";
 }
-	
+
 
 /**
  * APPLICATIONS MENU
  * Show function links based on rights level (Don't allow designated Double Data Entry people to see pages displaying other user's data.)
  */
-$appsMenuTitle = $lang['bottom_25'];
+$menu_id = 'projMenuApplications';
+$appsMenuCollapsed = Project::getMenuCollapseState($project_id, $menu_id);
+$imgCollapsed = $appsMenuCollapsed ? "toggle-expand.png" : "toggle-collapse.png";
+$appsMenuTitle =   "<div style='float:left'>{$lang['bottom_25']}</div>
+					<div class='opacity50 projMenuToggle' id='$menu_id'>"
+					. RCView::a(array('href'=>'javascript:;'),
+						RCView::img(array('src'=>$imgCollapsed, 'class'=>($isIE ? 'opacity50' : '')))
+					  ) . "
+				   </div>";
 $appsMenu = "<div class='menubox' style='padding-right:0;'>";
 //Calendar
-if ($status < 2 && $user_rights['calendar']) { 
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."date.png' class='imgfix'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."Calendar/index.php?pid=$project_id'>{$lang['app_08']}</a></div>";
+if ($status < 2 && $user_rights['calendar']) {
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."date.png'>&nbsp;&nbsp;<a href='".APP_PATH_WEBROOT."Calendar/index.php?pid=$project_id'>{$lang['app_08']}</a></div>";
 }
 // Data Exports, Reports, & Stats
-if (isset($user_rights['data_export_tool']) && ($user_rights['reports'] || $user_rights['data_export_tool'] > 0 || $user_rights['graphical'])) { 
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."layout_down_arrow.gif' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataExport/index.php?pid=$project_id\">{$lang['app_23']}</a></div>";
+if (isset($user_rights['data_export_tool']) && ($user_rights['reports'] || $user_rights['data_export_tool'] > 0 || $user_rights['graphical'])) {
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."layout_down_arrow.gif' style='margin-top:2px;'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataExport/index.php?pid=$project_id\">{$lang['app_23']}</a></div>";
 }
 //Data Import Tool
-if ($status < 2 && $user_rights['data_import_tool']) { 
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."table_row_insert.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataImport/index.php?pid=$project_id\">{$lang['app_01']}</a></div>";
+if ($status < 2 && $user_rights['data_import_tool']) {
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."table_row_insert.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataImport/index.php?pid=$project_id\">{$lang['app_01']}</a></div>";
 }
 //Data Comparison Tool
-if ($status < 2 && $user_rights['data_comparison_tool'] && isset($mobile_project) && $mobile_project != "2") { 
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."page_copy.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataComparisonTool/index.php?pid=$project_id\">{$lang['app_02']}</a></div>";
+if ($status < 2 && $user_rights['data_comparison_tool']) {
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."page_copy.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataComparisonTool/index.php?pid=$project_id\">{$lang['app_02']}</a></div>";
 }
 //Data Logging
-if ($user_rights['data_logging']) { 
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."report.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Logging/index.php?pid=$project_id\">".$lang['app_07']."</a></div>";
+if ($user_rights['data_logging']) {
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."report.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Logging/index.php?pid=$project_id\">".$lang['app_07']."</a></div>";
 }
 // Field Comment Log
 if ($data_resolution_enabled == '1') {
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."balloons.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataQuality/field_comment_log.php?pid=$project_id\">{$lang['dataqueries_141']}</a></div>";
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."balloons.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataQuality/field_comment_log.php?pid=$project_id\">{$lang['dataqueries_141']}</a></div>";
 }
 //File Repository
-if ($user_rights['file_repository']) { 
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."page_white_stack.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "FileRepository/index.php?pid=$project_id\">{$lang['app_04']}</a></div>";
+if ($user_rights['file_repository']) {
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."page_white_stack.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "FileRepository/index.php?pid=$project_id\">{$lang['app_04']}</a></div>";
 }
 //User Rights
-if ($user_rights['user_rights']) { 
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."user.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "UserRights/index.php?pid=$project_id\">{$lang['app_05']}</a>";
+if ($user_rights['user_rights']) {
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."user.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "UserRights/index.php?pid=$project_id\">{$lang['app_05']}</a>";
 	if ($user_rights['data_access_groups']) {
 		// Resolve Issues
-		$appsMenu .= RCView::span(array('style'=>'color:#777;margin:0 6px 0 5px;'), $lang['global_43']) . 
-					"<img src='".APP_PATH_IMAGES."group.png' class='imgfix' style='margin-right:2px;'>
+		$appsMenu .= RCView::span(array('style'=>'color:#777;margin:0 6px 0 5px;'), $lang['global_43']) .
+					"<img src='".APP_PATH_IMAGES."group.png' style='margin-right:2px;'>
 					<a href=\"" . APP_PATH_WEBROOT . "DataAccessGroups/index.php?pid=$project_id\">{$lang['global_114']}</a>";
 	}
 	$appsMenu .= "</div>";
 }
 //Lock Record advanced setup
 if ($user_rights['lock_record_customize'] > 0) {
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."lock_plus.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Locking/locking_customization.php?pid=$project_id\">{$lang['app_11']}</a></div>";
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."lock_plus.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Locking/locking_customization.php?pid=$project_id\">{$lang['app_11']}</a></div>";
 }
 //E-signature and Locking Management
 if ($status < 2 && $user_rights['lock_record'] > 0) {
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."tick_shield_lock.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Locking/esign_locking_management.php?pid=$project_id\">{$lang['app_12']}</a></div>";
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."tick_shield_lock.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Locking/esign_locking_management.php?pid=$project_id\">{$lang['app_12']}</a></div>";
 }
 // Randomization
 if ($randomization && $status < 2 && ($user_rights['random_setup'] || $user_rights['random_dashboard'])) {
 	$rpage = ($user_rights['random_setup']) ? "index.php" : "dashboard.php";
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."arrow_switch.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Randomization/$rpage?pid=$project_id\">{$lang['app_21']}</a></div>";
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."arrow_switch.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "Randomization/$rpage?pid=$project_id\">{$lang['app_21']}</a></div>";
 }
 // Data Quality
 if ($status < 2 && ($user_rights['data_quality_design'] || $user_rights['data_quality_execute'] || ($data_resolution_enabled == '2' && $user_rights['data_quality_resolution'] > 0))) {
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."checklist.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataQuality/index.php?pid=$project_id\">{$lang['app_20']}</a>";
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."checklist.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "DataQuality/index.php?pid=$project_id\">{$lang['app_20']}</a>";
 	if ($data_resolution_enabled == '2' && $user_rights['data_quality_resolution'] > 0) {
 		// Resolve Issues
-		$appsMenu .= RCView::span(array('style'=>'color:#777;margin:0 4px;'), $lang['global_43']) . 
-					"<img src='".APP_PATH_IMAGES."balloons.png' class='imgfix'>
+		$appsMenu .= RCView::span(array('style'=>'color:#777;margin:0 4px;'), $lang['global_43']) .
+					"<img src='".APP_PATH_IMAGES."balloons.png'>
 					<a href=\"" . APP_PATH_WEBROOT . "DataQuality/resolve.php?pid=$project_id\">{$lang['dataqueries_148']}</a>";
 	}
 	$appsMenu .= "</div>";
 }
 // API
 if ($status < 2 && $api_enabled && ($user_rights['api_export'] || $user_rights['api_import'])) {
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."computer.png' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "API/project_api.php?pid=$project_id\">{$lang['setup_77']}</a></div>";
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."computer.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "API/project_api.php?pid=$project_id\">{$lang['setup_77']}</a>".
+					RCView::span(array('style'=>'color:#777;margin:0 6px 0 5px;'), $lang['global_43']) .
+					"<img src='".APP_PATH_IMAGES."computer.png'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "API/playground.php?pid=$project_id\">{$lang['setup_143']}</a></div>";
 }
 // Mobile app
 if ($status < 2 && $mobile_app_enabled && $api_enabled && $user_rights['mobile_app'])
 {
-	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."redcap_app_icon.gif' class='imgfix'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "MobileApp/index.php?pid=$project_id\">{$lang['global_118']}</a></div>";
+	$appsMenu .= "<div class='hang'><img src='".APP_PATH_IMAGES."redcap_app_icon.gif'>&nbsp;&nbsp;<a href=\"" . APP_PATH_WEBROOT . "MobileApp/index.php?pid=$project_id\">{$lang['global_118']}</a></div>";
 }
 $appsMenu .= "</div>";
 
@@ -526,17 +529,20 @@ $appsMenu .= "</div>";
  */
 //Check to see if custom reports are specified for this project. If so, print the appropriate links.
 //Build menu item for each separate report
-$reportsListTitle = $lang['app_06'];
+$menu_id = 'projMenuReports';
+$reportsListCollapsed = Project::getMenuCollapseState($project_id, $menu_id);
+$imgCollapsed = $reportsListCollapsed ? "toggle-expand.png" : "toggle-collapse.png";
+$reportsListTitle = "<div style='float:left'>{$lang['app_06']}</div>
+					<div class='opacity50 projMenuToggle' id='$menu_id'>"
+					. RCView::a(array('href'=>'javascript:;'),
+						RCView::img(array('src'=>$imgCollapsed, 'class'=>($isIE ? 'opacity50' : '')))
+					  ) . "
+				   </div>";
 if ($user_rights['reports']) {
-	$reportsListTitle = "<table cellspacing='0' width='100%'>
-						<tr>
-							<td>{$lang['app_06']}</td>
-							<td id='menuLnkEditReports' class='opacity50' style='text-align:right;padding-right:10px;'>"
-								. RCView::img(array('src'=>'pencil_small2.png','class'=>'imgfix1 '.($isIE ? 'opacity50' : '')))
-								. RCView::a(array('href'=>APP_PATH_WEBROOT."DataExport/index.php?pid=$project_id",'style'=>'font-family:arial;font-size:11px;text-decoration:underline;color:#000066;font-weight:normal;'), $lang['bottom_71']) . "
-							</td>
-						</tr>
-					   </table>";
+	$reportsListTitle .= "<div class='opacity50' id='menuLnkEditReports' style='float:right;margin-right:5px;'>"
+						. RCView::img(array('src'=>'pencil_small2.png','class'=>''.($isIE ? 'opacity50' : '')))
+								. RCView::a(array('href'=>APP_PATH_WEBROOT."DataExport/index.php?pid=$project_id",'style'=>'font-family:arial;font-size:11px;text-decoration:underline;color:#000066;font-weight:normal;'), $lang['bottom_71'])
+					. "</div>";
 }
 // Reports built in Reports & Exports module
 $reportsList = DataExport::outputReportPanel();
@@ -545,18 +551,29 @@ $reportsList = DataExport::outputReportPanel();
 /**
  * HELP MENU
  */
-$helpMenuTitle = '<div style="margin-top:-3px;"><img src="'.APP_PATH_IMAGES.'help.png" class="imgfix"> <span style="color:#3E72A8;">'.$lang['bottom_42'].'</span></div>';
+$menu_id = 'projMenuHelp';
+$helpMenuCollapsed = Project::getMenuCollapseState($project_id, $menu_id);
+$imgCollapsed = $helpMenuCollapsed ? "toggle-expand.png" : "toggle-collapse.png";
+$helpMenuTitle =   "<div style='float:left'>
+						<img src='".APP_PATH_IMAGES."help.png' style='vertical-align:middle;'>
+						<span style='color:#3E72A8;'>{$lang['bottom_42']}</span>
+					</div>
+					<div class='opacity50 projMenuToggle' id='$menu_id'>"
+					. RCView::a(array('href'=>'javascript:;'),
+						RCView::img(array('src'=>$imgCollapsed, 'class'=>($isIE ? 'opacity50' : '')))
+					  ) . "
+				   </div>";
 $helpMenu = "<div class='menubox' style='font-size:11px;color:#444;'>
-				
+
 				<!-- Help & FAQ -->
 				<div class='hang'>
-					<img src='" . APP_PATH_IMAGES . "bullet_toggle_minus.png' class='imgfix'>
+					<img src='" . APP_PATH_IMAGES . "bullet_toggle_minus.png'>
 					<a style='color:#444;' href='" . APP_PATH_WEBROOT_PARENT . "index.php?action=help'>".$lang['bottom_27']."</a>
 				</div>
-				
+
 				<!-- Video Tutorials -->
 				<div class='hang'>
-					<img src='" . APP_PATH_IMAGES . "bullet_toggle_plus.png' class='imgfix'>
+					<img src='" . APP_PATH_IMAGES . "bullet_toggle_plus.png'>
 					<a style='color:#444;' href='javascript:;' onclick=\"
 						$('#menuvids').toggle('blind',{},500,
 							function(){
@@ -566,10 +583,10 @@ $helpMenu = "<div class='menubox' style='font-size:11px;color:#444;'>
 						);
 					\">".$lang['bottom_28']."</a>
 				</div>
-				
+
 				<div id='menuvids' style='display:none;line-height:1.2em;padding:2px 0 0 16px;'>
 					<div class='menuvid'>
-						&bull; <a onclick=\"popupvid('redcap_overview_brief01.flv')\" style='color:#3E72A8;font-size:11px;' href='javascript:;'>".$lang['bottom_58']."</a>
+						&bull; <a onclick=\"popupvid('redcap_overview_brief02.flv')\" style='color:#3E72A8;font-size:11px;' href='javascript:;'>".$lang['bottom_58']."</a>
 					</div>
 					<div class='menuvid'>
 						&bull; <a onclick=\"popupvid('redcap_overview03.mp4')\" style='color:#3E72A8;font-size:11px;' href='javascript:;'>".$lang['bottom_57']."</a>
@@ -589,20 +606,23 @@ $helpMenu = "<div class='menubox' style='font-size:11px;color:#444;'>
 					<div class='menuvid'>
 						&bull; <a onclick=\"popupvid('redcap_db_applications_menu02.flv')\" style='color:#3E72A8;font-size:11px;' href='javascript:;'>".$lang['bottom_32']."</a>
 					</div>
+					<div class='menuvid'>
+						&bull; <a onclick=\"popupvid('app_overview_01.mp4')\" style='color:#3E72A8;font-size:11px;' href='javascript:;'>".$lang['global_118']."</a>
+					</div>
 				</div>
-				
+
 				<!-- Suggest a New Feature -->
 				<div class='hang'>
-					<img src='" . APP_PATH_IMAGES . "star_small.png' class='imgfix'>
+					<img src='" . APP_PATH_IMAGES . "light-bulb-small.png'>
 					<a style='color:#444;' target='_blank' href='https://redcap.vanderbilt.edu/enduser_survey_redirect.php?redcap_version=$redcap_version&server_name=".SERVER_NAME."'>".$lang['bottom_52']."</a>
 				</div>
-				
+
 				<div style='padding-top:10px;'>
 					".$lang['bottom_38']." <a href='mailto:$project_contact_email' style='color:#333;font-size:11px;text-decoration:underline;'>".$lang['bottom_39']."</a>".$lang['period']."
 				</div>
-				
+
 			</div>";
-			
+
 /**
  * EXTERNAL PAGE LINKAGE
  */
@@ -616,20 +636,20 @@ if (defined("USERID") && isset($ExtRes)) {
 if (isset($_GET['pid']) && is_numeric($_GET['pid']))
 {
 	$westHtml = renderPanel('', $logoHtml)
-			  . renderPanel($dataEntryTitle, $dataEntry)
-			  . renderPanel($appsMenuTitle, $appsMenu, 'app_panel');
+			  . renderPanel((isset($dataEntryTitle) ? $dataEntryTitle : ''), (isset($dataEntry) ? $dataEntry : ''), '', $dataEntryCollapsed)
+			  . renderPanel($appsMenuTitle, $appsMenu, 'app_panel', $appsMenuCollapsed);
 	if ($externalLinkage != "") {
 		$westHtml .= $externalLinkage;
 	}
 	if ($reportsList != "") {
-		$westHtml .= renderPanel($reportsListTitle, $reportsList, 'report_panel');
+		$westHtml .= renderPanel($reportsListTitle, $reportsList, 'report_panel', $reportsListCollapsed);
 	}
-	$westHtml .= renderPanel($helpMenuTitle, $helpMenu, 'help_panel');
+	$westHtml .= renderPanel($helpMenuTitle, $helpMenu, 'help_panel', $helpMenuCollapsed);
 }
 else
 {
 	// Since no 'pid' is in URL, then give warning that header/footer will not display properly
-	$westHtml = renderPanel("&nbsp;", "<div style='padding:20px 15px;'><img src='".APP_PATH_IMAGES."exclamation.png' class='imgfix'> <b style='color:#800000;'>{$lang['bottom_54']}</b><br>{$lang['bottom_55']}</div>");
+	$westHtml = renderPanel("&nbsp;", "<div style='padding:20px 15px;'><img src='".APP_PATH_IMAGES."exclamation.png'> <b style='color:#800000;'>{$lang['bottom_54']}</b><br>{$lang['bottom_55']}</div>");
 }
 
 
@@ -637,23 +657,34 @@ else
  * PAGE CONTENT
  */
 ?>
-<table border=0 cellspacing=0 style="width:100%;">
-	<tr>
-		<td valign="top" id="west" style="width:250px;">
-			<div id="west_inner" style="width:250px;"><?php echo $westHtml ?></div>
-		</td>
-		<td valign="top" id="westpad">&nbsp;</td>
-		<td valign="top" id="center">
-			<div id="center_inner">
-				<div id="subheader" class="notranslate">
-					<?php if ($display_project_logo_institution) { ?>
-						<?php if (trim($headerlogo) != "") echo "<img src='$headerlogo' title='".cleanHtml($institution)."' alt='".cleanHtml($institution)."' style='max-width:700px; expression(this.width > 700 ? 700 : true);'>"; ?>
-						<div id="subheaderDiv1">
-							<?php echo $institution . (($site_org_type == "") ? "" : "<br><span style='font-family:tahoma;font-size:13px;'>$site_org_type</span>") ?>
-						</div>
-					<?php } ?>
-					<div id="subheaderDiv2" <?php if (!$display_project_logo_institution) echo 'style="border:0;padding-top:0;"'; ?>>
-						<div style="max-width:700px;"><?php echo filter_tags($app_title) ?></div>
+<!-- top navbar -->
+<div class="rcproject-navbar navbar navbar-default navbar-fixed-top" role="navigation">
+	<div class="container">
+		<div class="navbar-header">
+			<span class="navbar-brand" style="max-width:80%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo filter_tags($app_title) ?></span>
+			<button type="button" class="navbar-toggle" onclick="toggleProjectMenuMobile($('#west'))">
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			</button>
+		</div>
+	</div>
+</div>
+<!-- main window -->
+<div class="container-fluid mainwindow">
+	<div class="row row-offcanvas row-offcanvas-left">
+		<div id="west" class="hidden-xs col-sm-4 col-md-3" role="navigation">
+			<?php echo $westHtml ?>
+		</div>
+		<div id="center" class="col-xs-12 col-sm-8 col-md-9">
+			<div id="subheader">
+				<?php if ($display_project_logo_institution) { ?>
+					<?php if (trim($headerlogo) != "")
+						echo "<img src='$headerlogo' title='".cleanHtml($institution)."' alt='".cleanHtml($institution)."' style='margin:-5px 0 5px 20px;max-width:700px; expression(this.width > 700 ? 700 : true);'>";
+					?>
+					<div id="subheaderDiv1" class="bot-left">
+						<?php echo $institution . (($site_org_type == "") ? "" : "<br><span style='font-family:tahoma;font-size:13px;'>$site_org_type</span>") ?>
 					</div>
-				</div>
-
+				<?php } ?>
+				<div id="subheaderDiv2" class="bot-left"><?php echo filter_tags($app_title) ?></div>
+			</div>

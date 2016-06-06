@@ -1,7 +1,7 @@
 <?php
 define("NOAUTH", true);
 /**
- * Created by NC TraCS for HCV-TARGET.
+ * Created by HCV-TARGET for HCV-TARGET.
  * User: kbergqui
  * Date: 10-26-2013
  */
@@ -518,7 +518,7 @@ if ($_POST) {
 				foreach ($subject AS $event_id => $event) {
 					$immun_flag = 'N';
 					$immun_meds = array();
-					$immun_meds_result = db_query("SELECT * FROM _target_immune_meds WHERE cm_cmcat != 'steroid' AND cm_cmtrt = '{$event['cm_cmdecod']}'");
+					$immun_meds_result = db_query("SELECT * FROM _target_meds_of_interest WHERE cm_cmcat != 'steroid' AND cm_cmtrt = '{$event['cm_cmdecod']}'");
 					if ($immun_meds_result) {
 						while ($immun_meds_row = db_fetch_assoc($immun_meds_result)) {
 							$immun_meds[] = $immun_meds_row['cm_cmtrt'];

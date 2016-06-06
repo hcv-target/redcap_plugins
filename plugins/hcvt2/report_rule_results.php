@@ -1,6 +1,6 @@
 <?php
-
-$debug = true;
+global $lang, $app_title, $userid, $user_rights;
+$debug = false;
 $timer = array();
 $timer['start'] = microtime(true);
 
@@ -8,7 +8,6 @@ $base_path = dirname(dirname(dirname(__FILE__)));
 require_once $base_path . "/redcap_connect.php";
 require_once $base_path . '/plugins/includes/functions.php';
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
-require_once APP_PATH_DOCROOT . '/DataExport/functions.php';
 /**
  * restricted use
  */
@@ -22,7 +21,8 @@ Kint::enabled($debug);
  */
 $table_csv = "";
 $rules = array();
-$rule_id_result = db_query("SELECT rule_id, rule_name, SUBSTRING(SUBSTRING_INDEX(rule_logic, ']', 1), LOCATE('[', rule_logic)+1) AS rule_field FROM `redcap_data_quality_rules` WHERE project_id = '$project_id' ORDER BY rule_order ASC");
+$rule_sql = "SELECT rule_id, rule_name, SUBSTRING(SUBSTRING_INDEX(rule_logic, ']', 1), LOCATE('[', rule_logic)+1) AS rule_field FROM `redcap_data_quality_rules` WHERE project_id = '$project_id' ORDER BY rule_order ASC";
+$rule_id_result = db_query($rule_sql);
 ?>
 	<h3>Generate a report of Data Quality rule results</h3>
 	<p>Select a Data Quality rule</p>
@@ -46,7 +46,7 @@ $rule_id_result = db_query("SELECT rule_id, rule_name, SUBSTRING(SUBSTRING_INDEX
 				}
 				?>
 			</select>
-			<br />
+			<br/>
 			<input type='submit' value='Generate report for this rule'/>
 		</div>
 	</form>
@@ -59,16 +59,20 @@ if (isset($_POST['rule_id']) && $_POST['rule_id'] != 'ALL_RULES') {
 // Get rule info
 	$rule_info = $dq->getRule($rule_id);
 
-	d($rule_info, 'RULE INFO');
+	d($rule_info);
 
 	/**
 	 * get the first field in the rule logic - this is where the query will be put
 	 */
-	$field = array_shift(array_keys(getBracketedFields($rule_info['logic'], true, true, false)));
-	if (strpos($field, '.') !== false) {
-		$field = substr($field, strpos($field, '.') + 1);
+	$fields = array_keys(getBracketedFields($rule_info['logic'], true, true, false));
+	$clean_fields = array();
+	foreach ($fields AS $key => $val) {
+		if (strpos($val, '.') !== false) {
+			$clean_fields[$key] = substr($val, strpos($val, '.') + 1);
+		}
 	}
-	d($field, 'FIELD');
+	$field = get_first_of_array($clean_fields);
+	d($field);
 
 // Execute this rule
 	$dq->executeRule($rule_id);
@@ -76,7 +80,7 @@ if (isset($_POST['rule_id']) && $_POST['rule_id'] != 'ALL_RULES') {
 // Log the event
 	if (!$debug) {
 		// Only log this event for the LAST ajax request sent (since sometimes multiple serial requests are sent)
-		log_event($sql_all, "redcap_data_quality_rules", "MANAGE", PROJECT_ID, "project_id = " . PROJECT_ID, "Execute data quality rule(s)");
+		log_event($rule_sql, "redcap_data_quality_rules", "MANAGE", PROJECT_ID, "project_id = " . PROJECT_ID, "Execute data quality rule(s)");
 	}
 
 	$rule_results = $dq->getLogicCheckResults();
@@ -101,7 +105,7 @@ if (isset($_POST['rule_id']) && $_POST['rule_id'] != 'ALL_RULES') {
 			 * we don't want to duplicate queries
 			 * if the result is excluded or has a query history, ignore it
 			 */
-			if (!($result['exclude'] || count($history) > 0)) {
+			if (!$result['exclude']) {
 				d($history);
 				//$data_row['monitor'] = $result['record'] & 1 ? 'dianne_mattingly' : 'wendy_robertson';
 				$data_row['subjid'] = quote_wrap($result['record']);
@@ -110,16 +114,10 @@ if (isset($_POST['rule_id']) && $_POST['rule_id'] != 'ALL_RULES') {
 				//$data_row['field'] = quote_wrap($Proj->metadata[$field]['element_label']);
 				//$data_row['data'] = quote_wrap(strip_tags(str_replace('<br>', ', ', $result['data_display'])));
 				foreach ($data_array AS $key => $val) {
-					/**
-					 * with field names
-					 * $data_row[$key] = quote_wrap($val);
-					 */
-					/**
-					 * with labels
-					 */
 					$data_row[quote_wrap($Proj->metadata[$key]['element_label'] . " [$key]")] = quote_wrap($val);
 				}
 				$data_row['description'] = quote_wrap($rule_info['name']);
+				$data_row["Queries on $field"] = quote_wrap(count($history));
 				$row_csv = implode(',', $data_row) . "\n";
 				$table_csv .= $row_csv;
 			}
@@ -127,7 +125,7 @@ if (isset($_POST['rule_id']) && $_POST['rule_id'] != 'ALL_RULES') {
 	}
 	$headers = implode(',', array_keys($data_row)) . "\n";
 	if (!$debug) {
-		create_download($lang, $app_title, $userid, $headers, $user_rights, $table_csv, '', $parent_chkd_flds, $project_id, substr(camelCase($rule_info['name']), 0, 20) . "_REPORT_", $debug, $rule_info['name']);
+		create_download($lang, $app_title, $userid, $headers, $user_rights, $table_csv, $clean_fields, null, $project_id, substr(camelCase($rule_info['name']), 0, 20) . "_REPORT_", $debug, $rule_info['name']);
 	}
 	d($headers);
 	d($table_csv);

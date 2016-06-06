@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS for HCV-TARGET studies v2.0 and above.
+ * Created by HCV-TARGET for HCV-TARGET studies v2.0 and above.
  * User: kbergqui
  * Date: 3-5-14
  * Purpose: Calculate MELD score for HCV-TARGET 2.0 patients
@@ -8,8 +8,10 @@
 /**
  * TESTING
  */
-$debug = true;
-$subjects = '4'; // '' = ALL
+$getdebug = $_GET['debug'] ? $_GET['debug'] : false;
+$debug = $getdebug ? true : false;
+$subjects = $_GET['id'] ? $_GET['id'] : '';
+$enable_kint = $debug && $subjects != '' ? true : false;
 $timer = array();
 $timer['start'] = microtime(true);
 /**
@@ -19,7 +21,6 @@ $timer['start'] = microtime(true);
 $base_path = dirname(dirname(dirname(__FILE__)));
 require_once $base_path . "/redcap_connect.php";
 require_once $base_path . '/plugins/includes/functions.php';
-require_once APP_PATH_DOCROOT . '/Config/init_project.php';
 require_once APP_PATH_DOCROOT . '/ProjectGeneral/header.php';
 /**
  * restrict access to one or more pids

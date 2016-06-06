@@ -1,13 +1,18 @@
 <?php
 /**
- * Created by NC TraCS for HCV-TARGET.
+ * Created by HCV-TARGET for HCV-TARGET.
  * User: kbergqui
  * Date: 10-26-2013
  */
 /**
  * TESTING
  */
-$debug = false;
+$getdebug = $_GET['debug'] ? $_GET['debug'] : false;
+$debug = $getdebug ? true : false;
+$subjects = $_GET['id'] ? $_GET['id'] : '';
+$enable_kint = $debug && $subjects != '' ? true : false;
+$timer = array();
+$timer['start'] = microtime(true);
 /**
  * includes
  * adjust dirname depth as needed
@@ -15,13 +20,14 @@ $debug = false;
 $base_path = dirname(dirname(dirname(__FILE__)));
 require_once $base_path . "/redcap_connect.php";
 require_once $base_path . '/plugins/includes/functions.php';
-require_once APP_PATH_DOCROOT . '/Config/init_project.php';
 require_once APP_PATH_DOCROOT . '/ProjectGeneral/header.php';
 /**
  * restricted use
  */
 $allowed_pids = array('26');
 REDCap::allowProjects($allowed_pids);
+global $Proj;
+Kint::enabled($debug);
 /**
  * APRI
  */
@@ -30,9 +36,6 @@ $chem_fields = array('chem_lbdtc', 'ast_lbstresn');
 $cbc_fields = array('cbc_lbdtc', 'plat_lbstresn', 'apri_lborres');
 $cbc_data = REDCap::getData('array', '', $cbc_fields);
 foreach ($cbc_data AS $subject_id => $subject) {
-	if ($debug) {
-		show_var($subject_id, 'SUBJID', 'red');
-	}
 	$chem_events = array();
 	$chem_data = REDCap::getData('array', $subject_id, $chem_fields);
 	foreach ($subject AS $event_id => $event) {

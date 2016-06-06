@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 8/27/13
  * Time: 4:06 PM
@@ -46,11 +46,11 @@ set_cbc_flags($subjects, $debug);
 $timer['set cirrhosis'] = microtime(true);
 set_cirrhosis($subjects, $debug);
 $timer['set crcl'] = microtime(true);
-set_crcl($subjects, null, $debug);
+set_crcl($subjects, null, 'both', $debug);
 $timer['set trt exp'] = microtime(true);
 set_treatment_exp($subjects, $debug);
 $timer['set egfr'] = microtime(true);
-set_egfr($subjects, null, $debug);
+set_egfr($subjects, null, 'both', $debug);
 /**
  * timing
  */

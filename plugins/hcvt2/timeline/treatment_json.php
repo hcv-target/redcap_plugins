@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 4/9/14
  * Time: 11:55 AM
@@ -58,7 +58,7 @@ header('Content-Type: application/json; charset=utf-8');
 /**
  * treatment
  */
-$treatments = array('interferon' => 'ifn', 'ribavirin' => 'rib', 'boceprevir' => 'boc', 'telaprevir' => 'tvr', 'simeprevir' => 'sim', 'sofosbuvir' => 'sof', 'daclatasvir' => 'dcv', 'harvoni' => 'hvn', 'ombitasvir_paritaprevir' => 'vpk', 'dasabuvir' => 'dbv');
+$treatments = array('interferon' => 'ifn', 'ribavirin' => 'rib', 'boceprevir' => 'boc', 'telaprevir' => 'tvr', 'simeprevir' => 'sim', 'sofosbuvir' => 'sof', 'daclatasvir' => 'dcv', 'harvoni' => 'hvn', 'ombitasvir_paritaprevir' => 'vpk', 'dasabuvir' => 'dbv', 'zepatier' => 'zep');
 foreach ($treatments AS $treatment => $prefix) {
 	$treatment_page = in_array($prefix, array('dbv', 'vpk')) ? $treatment : $treatment . '_administration';
 	$tx_name = get_field_label($prefix . '_cmtrt', $project_id);

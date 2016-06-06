@@ -1,12 +1,20 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 8/27/13
  * Time: 4:06 PM
  */
-$debug = true;
-$subjects = '4'; // '' = ALL
+/**
+ * debug
+ */
+$getdebug = $_GET['debug'] ? $_GET['debug'] : false;
+$debug = $getdebug ? true : false;
+$subjects = $_GET['id'] ? $_GET['id'] : '';
+$enable_kint = $debug && $subjects != '' ? true : false;
+/**
+ * timing
+ */
 $timer = array();
 $timer['start'] = microtime(true);
 /**
@@ -15,14 +23,13 @@ $timer['start'] = microtime(true);
 $base_path = dirname(dirname(dirname(__FILE__)));
 require_once $base_path . "/redcap_connect.php";
 require_once $base_path . '/plugins/includes/functions.php';
-require_once APP_PATH_DOCROOT . '/Config/init_project.php';
 require_once APP_PATH_DOCROOT . '/ProjectGeneral/header.php';
 /**
  * restrict use of this plugin to the appropriate project
  */
 $allowed_pid = '26';
 REDCap::allowProjects($allowed_pid);
-Kint::enabled($debug);
+Kint::enabled($enable_kint);
 /**
  * project metadata
  */
