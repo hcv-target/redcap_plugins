@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS for HCV-TARGET studies v2.0 and above.
+ * Created by HCV-TARGET for HCV-TARGET studies v2.0 and above.
  * User: kbergqui
  * Date: 2014-07-01
  * Purpose: Derive 'Y' values for field trt_suppcm_txstat

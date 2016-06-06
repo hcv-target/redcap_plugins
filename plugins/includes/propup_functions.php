@@ -134,6 +134,7 @@ function get_arms($tx_arm_event_ids) {
         AND events_meta.event_id IN ($tx_arm_event_id_list)");
 	if ($arms_result) {
 		while ($arms_row = db_fetch_array($arms_result)) {
+			$arms_row['descrip'] = str_replace(array("\"", "'", "+"), array("", "", ""), $arms_row['descrip']);
 			$arms[strtolower($arms_row['descrip']) . '_arm_' . $arms_row['arm_num']]['event_id'] = $arms_row['event_id'];
 			$arms[strtolower($arms_row['descrip']) . '_arm_' . $arms_row['arm_num']]['arm_num'] = $arms_row['arm_num'];
 			$arms[strtolower($arms_row['descrip']) . '_arm_' . $arms_row['arm_num']]['arm_name'] = $arms_row['arm_name'];

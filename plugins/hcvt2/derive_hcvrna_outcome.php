@@ -1,17 +1,13 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 10/6/2014
  * Time: 11:52 AM
  */
-$getdebug = $_GET['debug'] ? $_GET['debug'] : false;
-$debug = $getdebug ? true : false;
+$debug = $_GET['debug'] ? (bool)$_GET['debug'] : false;
 $subjects = $_GET['id'] ? $_GET['id'] : '';
 $enable_kint = $debug && $subjects != '' ? true : false;
-/**
- * timing
- */
 $timer = array();
 $timer['start'] = microtime(true);
 /**
@@ -44,14 +40,13 @@ $fieldsets = array(
 	'abstracted' => array(
 		array('date_field' => 'hcv_lbdtc'),
 		array('value_field' => 'hcv_lbstresn'),
-		array('detect_field' => 'hcv_supplb_hcvdtct'),
-		array('trust_blip' => 'hcv_supplb_blipfl')
+		array('detect_field' => 'hcv_supplb_hcvdtct')
 	),
 	'imported' => array(
 		array('date_field' => 'hcv_im_lbdtc'),
 		array('value_field' => 'hcv_im_lbstresn'),
 		array('detect_field' => 'hcv_im_supplb_hcvdtct'),
-		array('trust_blip' => 'hcv_im_supplb_blipfl')
+		array('trust' => 'hcv_im_nxtrust')
 	)
 );
 $data = array();
@@ -74,27 +69,30 @@ $timer['start_main'] = microtime(true);
  */
 $ie_fields = array('ie_ietestcd');
 $ie_data = REDCap::getData('array', $subjects, $ie_fields);
-$date_fields = array('dm_usubjid', 'dm_rfstdtc', 'dis_suppfa_txendt', 'eot_dsterm', 'dis_dsstdy', 'hcv_suppfa_fuelgbl', 'hcv_suppfa_nlgblrsn', 'hcv_suppfa_hcvout', 'hcv_suppfa_wk10rna', 'hcv_suppfa_lastbloq', 'dis_suppds_funcmprsn', 'hcv_suppfa_fudue', 'dm_suppdm_hcvt2id', 'dm_actarmcd');
+$date_fields = array('dm_usubjid', 'dm_rfstdtc', 'dis_suppfa_txendt', 'eot_dsterm', 'dis_dsstdy', 'hcv_suppfa_fuelgbl', 'hcv_suppfa_nlgblrsn', 'hcv_suppfa_hcvout', 'hcv_suppfa_wk10rna', 'hcv_suppfa_lastbloq', 'dis_suppds_funcmprsn', 'hcv_suppfa_fudue', 'dm_suppdm_hcvt2id', 'dm_actarmcd', 'dm_suppdm_rtrtsdtc');
 $date_data = REDCap::getData('array', $subjects, $date_fields, $baseline_event_id);
 $blip_threshold = 500;
 
 $timer['have_data'] = microtime(true);
 foreach ($date_data AS $subject_id => $subject) {
 	$all_events = array();
+	$post_tx_dates = array();
+	$post_tx_bloq_dates = array();
+	$re_treat_possible = false;
+	$re_treat_dates = array();
 	foreach ($subject AS $date_event_id => $date_event) {
 		/**
 		 * HCV RNA Outcome
 		 */
 		$hcvrna_improved = false;
 		$on_tx_scores = array();
-		$hcvrna_last_before_score = '';
+		$hcvrna_previous_score = '';
 		$post_tx_scores = array();
 		$post_tx_plus10w_scores = array();
 		$post_tx_plus10d_scores = array();
 		$last_hcvrna_bloq = false;
 		$stop_date_plus_10w = null;
 		$stop_date_plus_10d = null;
-		$has_10week_results = false;
 		$tx_stopped_10_wks_ago = false;
 		$started_tx = false;
 		$stopped_tx = false;
@@ -161,10 +159,7 @@ foreach ($date_data AS $subject_id => $subject) {
 			}
 		}
 		ksort($all_events);
-		if ($subjects != '') {
-			d($all_events);
-			d($t3_start_date);
-		}
+		d($all_events);
 		/**
 		 * get outcomes
 		 */
@@ -174,15 +169,9 @@ foreach ($date_data AS $subject_id => $subject) {
 				 * if we have a date, and the HCV RNA isn't an 'untrusted blip'...
 				 * (blips are sudden, small increases in viral load following EOT)
 				 */
-				if ((($event['date_field'] != '' && $t3_start_date == '') || ($event['date_field'] != '' && $t3_start_date != '' && $event['date_field'] <= $t3_start_date)) /*&& $event['trust_blip'] != 'N'*/) {
-					$is_bloq = (in_array($event['detect_field'], array('BLOQ', 'NOT_SPECIFIED', 'DETECTED')) /*|| ((isset($stop_date) && $event['date_field'] > $stop_date) && $event['value_field'] != '' && $event['value_field'] < $blip_threshold)*/) ? true : false;
-					if ($is_bloq) {
-						$score = '0';
-						$last_hcvrna_bloq = true;
-					} else {
-						$score = '1';
-						$last_hcvrna_bloq = false;
-					}
+				if ((($event['date_field'] != '' && $t3_start_date == '') || ($event['date_field'] != '' && $t3_start_date != '' && $event['date_field'] <= $t3_start_date)) && $event['trust'] != 'N') {
+					$is_bloq = (in_array($event['detect_field'], array('BLOQ', 'NOT_SPECIFIED', 'DETECTED'))) ? true : false;
+					$score = $is_bloq ? '0' : '1';
 					/**
 					 * if treatment has started, and $event['date_field'] is after start date (is baseline or later)
 					 */
@@ -192,29 +181,25 @@ foreach ($date_data AS $subject_id => $subject) {
 						 */
 						if (!$stopped_tx || ($stopped_tx && $event['date_field'] <= $stop_date)) { // on treatment
 							$on_tx_scores[] = $score;
-							if ($score > $hcvrna_last_before_score) {
+							if ($score >= $hcvrna_previous_score) {
 								$hcvrna_improved = false;
-							} elseif ($score < $hcvrna_last_before_score) {
+							} elseif ($score < $hcvrna_previous_score) {
 								$hcvrna_improved = true;
 							}
-							$hcvrna_last_before_score = $score;
+							$hcvrna_previous_score = $score;
 						} else { // post-treatment
 							/**
-							 * OBSOLETE
-							 * if the result date is more than 8 weeks after SVR12, don't count among post_tx_scores
-							 * to filter out re-treat results.
-							 * if ($event['date_field'] <= add_date($stop_date_plus_10w, 70)) {
-							 *
 							 * RE-TREAT handling
+							 * If this HCVRNA is quantifiable, add the date to an array
 							 * if this HCVRNA is bloq and we have quantified post-TX HCVRNA, it's a re-treat and we don't want it in $post_tx_scores
 							 */
-							if (!($is_bloq && in_array('1', $post_tx_scores))) {
+							if ($is_bloq && !in_array('1', $post_tx_scores)) {
+								$post_tx_bloq_dates[] = $event['date_field'];
 								$post_tx_scores[] = $score;
 								/**
 								 * capture scores that are after EOT plus 10 weeks
 								 */
 								if (isset($stop_date_plus_10w) && $event['date_field'] >= $stop_date_plus_10w) {
-									$has_10week_results = true;
 									$post_tx_plus10w_scores[] = $score;
 								}
 								/**
@@ -224,11 +209,39 @@ foreach ($date_data AS $subject_id => $subject) {
 									$post_tx_plus10d_scores[] = $score;
 								}
 							}
+							if (!$is_bloq && !in_array('1', $post_tx_scores) && !$re_treat_possible) {
+								$post_tx_dates[] = $event['date_field'];
+								$post_tx_scores[] = $score;
+								/**
+								 * capture scores that are after EOT plus 10 weeks
+								 */
+								if (isset($stop_date_plus_10w) && $event['date_field'] >= $stop_date_plus_10w) {
+									$post_tx_plus10w_scores[] = $score;
+								}
+								/**
+								 * capture scores that are between EOT and EOT plus 10 days
+								 */
+								if (isset($stop_date_plus_10d) && $event['date_field'] <= $stop_date_plus_10d) {
+									$post_tx_plus10d_scores[] = $score;
+								}
+							}
+							if ($is_bloq && in_array('1', $post_tx_scores)) {
+								$re_treat_possible = true;
+							}
 						}
 					}
 				}
 			}
 		}
+		/**
+		 * we have all our score candidates
+		 */
+		$all_scores = array_merge($on_tx_scores, $post_tx_scores);
+		$last_hcvrna_bloq = count($all_scores) > 0 && get_end_of_array($all_scores) == '0' ? true : false;
+		/**
+		 * get candidates for re-treat cutoff date
+		 */
+		$re_treat_dates = array_diff(array_unique($post_tx_dates), array_unique($post_tx_bloq_dates));
 		/**
 		 * HCVRNA Followup Eligibility
 		 * subjects are ineligible for followup if:
@@ -283,7 +296,7 @@ foreach ($date_data AS $subject_id => $subject) {
 			/**
 			 * AND today is TX stop date + 14 weeks ago, and no final outcome, data is due
 			 */
-			if (date("Y-m-d") >= (add_date($stop_date, 98, 0, 0)) && !in_array($outcome, array('SVR', 'VIRAL BREAKTHROUGH', 'RELAPSE', 'NON-RESPONDER', 'LOST TO FOLLOW UP'))) {
+			if (date("Y-m-d") >= (add_date($stop_date, 98, 0, 0)) && !in_array($outcome, array('SVR', 'VIRAL BREAKTHROUGH', 'RELAPSE', 'NON-RESPONDER', 'LOST TO FOLLOWUP'))) {
 				$hcv_data_due = true;
 			}
 		}
@@ -347,55 +360,40 @@ foreach ($date_data AS $subject_id => $subject) {
 		/**
 		 * get values
 		 */
+		$last_bloq = $last_hcvrna_bloq ? 'Y' : 'N';
 		$eligible = !$hcv_fu_eligible ? 'N' : 'Y';
 		$reason = implode('; ', array_unique($hcv_fu_ineligible_reason));
 		$data_due = $hcv_data_due ? 'Y' : 'N';
-		$wk10_rna = $has_10week_results ? 'Y' : 'N';
-		$last_bloq = $last_hcvrna_bloq ? 'Y' : 'N';
+		$wk10_rna = count($post_tx_plus10w_scores) > 0 ? 'Y' : 'N';
+		rsort($re_treat_dates);
+		$re_treat_date = $re_treat_possible ? get_end_of_array($re_treat_dates) : null;
 		/**
 		 * debug
 		 */
 		if ($debug) {
+			d($all_scores);
 			if ($started_tx) {
 				d($tx_start_date);
-				if (!empty($on_tx_scores)) {
-					d($on_tx_scores);
-				} else {
-					d('NO ON TX HCVRNA');
-				}
+				d($on_tx_scores);
 				if ($stopped_tx) {
-					if (!empty($post_tx_scores)) {
-						d($post_tx_scores);
-						if (!empty($post_tx_plus10d_scores)) {
-							d($post_tx_plus10d_scores);
-						} else {
-							d('NO EOT+10day HCVRNA');
-						}
-						if ($has_10week_results) {
-							d($post_tx_plus10w_scores);
-						} else {
-							d('NO EOT+10week HCVRNA');
-						}
-					} else {
-						d('NO >EOT HCVRNA');
-					}
-				}
-				if ($t3_start_date != '') {
-					d($t3_start_date);
-				}
-				if ($subjects != '') {
+					d($stop_date);
+					d($post_tx_scores);
+					d($post_tx_plus10d_scores);
+					d($post_tx_plus10w_scores);
 					d($last_hcvrna_bloq);
 					d($lost_to_followup);
-					d($hcv_fu_eligible);
 					d($post_tx_followup_eligible);
+					d($hcv_fu_eligible);
+					d($post_tx_bloq_dates);
+					d($post_tx_dates);
+					d($t3_start_date);
+					d($re_treat_possible);
 					d($tx_stopped_10_wks_ago);
 					d($hcv_data_due);
-					if ((!$hcv_fu_eligible || !$post_tx_followup_eligible) && $started_tx && !$stopped_tx) {
-						d($genotype);
-						d($sof_rbv_regimen);
-					}
+					d($outcome);
+				} else {
+					d('NO TX STOP');
 				}
-				d($outcome);
 			} else {
 				d('NO TX START');
 			}
@@ -421,6 +419,10 @@ foreach ($date_data AS $subject_id => $subject) {
 		 * set HCV RNA BLOQ?
 		 */
 		update_field_compare($subject_id, $project_id, $baseline_event_id, $last_bloq, $date_event['hcv_suppfa_lastbloq'], 'hcv_suppfa_lastbloq', $debug);
+		/**
+		 * set re-treat window start date
+		 */
+		update_field_compare($subject_id, $project_id, $baseline_event_id, $re_treat_date, $date_event['dm_suppdm_rtrtsdtc'], 'dm_suppdm_rtrtsdtc', $debug);
 	}
 }
 $timer['main_end'] = microtime(true);

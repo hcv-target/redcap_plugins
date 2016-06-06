@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS for HCV-TARGET studies v2.0 and above.
+ * Created by HCV-TARGET for HCV-TARGET studies v2.0 and above.
  * User: kbergqui
  * Date: 3-5-14
  * Purpose: Derive baseline dates and flags
@@ -111,11 +111,12 @@ foreach ($data AS $subject_id => $subject) {
 	 * if treatment has started
 	 */
 	if (isset($rfstdtc) || $rfstdtc != '') {
+		d($rfstdtc);
 		/**
 		 * iterate the lab events for this subject
 		 */
-		foreach ($control_fields as $fragment => $labs) {
-			foreach ($labs as $fieldset => $fields) {
+		foreach ($control_fields as $form_prefix => $labs) {
+			foreach ($labs as $lab_prefix => $fields) {
 				$lab_subject = array();
 				$reset = array();
 				foreach ($fields AS $field) {
@@ -133,42 +134,68 @@ foreach ($data AS $subject_id => $subject) {
 					/**
 					 * fetch the baseline date and set baseline / flag pair
 					 */
-					$baseline_date = '';
-					$this_data = get_baseline_date($lab_subject, $fragment, $rfstdtc);
+					$this_data = get_baseline_date($lab_subject, $form_prefix, $rfstdtc);
+					d($form_prefix, $lab_prefix, $this_data);
 					/**
+					 * ABSTRACTED
 					 * if the nearest date is prior or equal to rfstdtc, it's a baseline date
 					 */
-					d($this_data);
-					d($rfstdtc);
-					if (($this_data[$fragment . '_lbdtc'] != '' && $this_data[$fragment . '_lbdtc'] <= $rfstdtc) || ($this_data[$fragment . '_im_lbdtc'] != '' && $this_data[$fragment . '_im_lbdtc'] <= $rfstdtc)) {
-						$baseline_date = $this_data[$fragment . '_lbdtc'] != '' ? $this_data[$fragment . '_lbdtc'] : $this_data[$fragment . '_im_lbdtc'];
-						/**
-						 * Baseline date belongs in Baseline event
-						 */
-						/*update_field_compare($subject_id, $project_id, $initial_event, $baseline_date, get_single_field($subject_id, $project_id, $initial_event, $fieldset . "_supplb_lbdtbl", null), $fieldset . "_supplb_lbdtbl", $debug);*/
-						update_field_compare($subject_id, $project_id, $initial_event, $baseline_date, $data[$subject_id][$initial_event][$fieldset . "_supplb_lbdtbl"], $fieldset . "_supplb_lbdtbl", $debug);
-						d($baseline_date);
+					$baseline_date = '';
+					$this_baseline_flag = '';
+					if ($this_data[$form_prefix . '_lbdtc'] != '' && $this_data[$form_prefix . '_lbdtc'] <= $rfstdtc) {
+						$baseline_date = $this_data[$form_prefix . '_lbdtc'];
+						$this_baseline_flag = 'Y';
+					} else {
 						/**
 						 * Now reset all other flags that have changed
 						 */
-						$this_baseline_flag = $data[$subject_id][$this_data['event_id']][$fieldset . "_lbblfl"];
 						foreach ($data[$subject_id] AS $flag_event_id => $flag_event) {
-							$reset[$flag_event_id] = $flag_event[$fieldset . '_lbblfl'];
+							$reset[$flag_event_id] = $flag_event[$lab_prefix . '_lbblfl'];
 						}
 						foreach ($reset AS $reset_event_id => $reset_event) {
 							foreach ($reset_event as $reset_field => $reset_val) {
-								if ($reset_event_id != $this_data['event_id']) {
-									update_field_compare($subject_id, $project_id, $reset_event_id, '', $reset_val, $fieldset . "_lbblfl", $debug);
-								}
+								update_field_compare($subject_id, $project_id, $reset_event_id, '', $reset_val, $lab_prefix . "_lbblfl", $debug);
 							}
 						}
+					}
+					/**
+					 * Baseline flag belongs in the event where the baseline occurs
+					 */
+					update_field_compare($subject_id, $project_id, $this_data['event_id'], $this_baseline_flag, $data[$subject_id][$this_data['event_id']][$lab_prefix . "_lbblfl"], $lab_prefix . "_lbblfl", $debug);
+					/**
+					 * Baseline date belongs in Baseline event - one date for both abstracted and imported
+					 */
+					//update_field_compare($subject_id, $project_id, $initial_event, $baseline_date, get_single_field($subject_id, $project_id, $initial_event, $lab_prefix . "_supplb_lbdtbl", ''), $lab_prefix . "_supplb_lbdtbl", $debug);
+					/**
+					 * IMPORTED
+					 */
+					//$baseline_date = '';
+					$this_baseline_flag = '';
+					if ($this_data[$form_prefix . '_im_lbdtc'] != '' && $this_data[$form_prefix . '_im_lbdtc'] <= $rfstdtc) {
+						$baseline_date = $this_data[$form_prefix . '_im_lbdtc'];
+						$this_baseline_flag = 'Y';
+					} else {
 						/**
-						 * Baseline flag belongs in the event where the date occurs
+						 * Now reset all other flags that have changed
 						 */
-						if ($baseline_date != '') {
-							update_field_compare($subject_id, $project_id, $this_data['event_id'], 'Y', $this_baseline_flag, $fieldset . "_lbblfl", $debug);
+						foreach ($data[$subject_id] AS $flag_event_id => $flag_event) {
+							$reset[$flag_event_id] = $flag_event[$lab_prefix . '_im_lbblfl'];
+						}
+						foreach ($reset AS $reset_event_id => $reset_event) {
+							foreach ($reset_event as $reset_field => $reset_val) {
+								update_field_compare($subject_id, $project_id, $reset_event_id, '', $reset_val, $lab_prefix . "_im_lbblfl", $debug);
+							}
 						}
 					}
+					/**
+					 * Baseline flag belongs in the event where the date occurs
+					 */
+					update_field_compare($subject_id, $project_id, $this_data['event_id'], $this_baseline_flag, $data[$subject_id][$this_data['event_id']][$lab_prefix . "_im_lbblfl"], $lab_prefix . "_im_lbblfl", $debug);
+					/**
+					 * Baseline date belongs in Baseline event - one date for both abstracted and imported
+					 */
+					d($baseline_date);
+					update_field_compare($subject_id, $project_id, $initial_event, $baseline_date, get_single_field($subject_id, $project_id, $initial_event, $lab_prefix . "_supplb_lbdtbl", ''), $lab_prefix . "_supplb_lbdtbl", $debug);
 				}
 			}
 		}

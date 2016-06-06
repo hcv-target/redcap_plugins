@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 8/8/13
  * Time: 12:32 PM
@@ -14,10 +14,11 @@ date_default_timezone_set('America/New_York');
  */
 require_once "logging.php";
 /**
- * Kint for debugging
+ * TARGET classes
  */
 require_once $base_path . '/plugins/classes/kint/Kint.class.php';
 require_once $base_path . '/plugins/classes/FieldSorter.php';
+require_once $base_path . '/plugins/classes/Treatment.php';
 /**
  * for post-redcap-6 compatibility
  */
@@ -152,9 +153,9 @@ function add_date($givendate, $day = 0, $mth = 0, $yr = 0)
  */
 function show_var($var, $label = '', $class = 'yellow')
 {
-	echo "<div class='$class'>$label<pre>";
+	echo "<div class='$class'>$label<!--<pre>-->";
 	echo var_dump($var);
-	echo '</pre></div>';
+	echo '<!--</pre>--></div>';
 }
 
 /**
@@ -207,6 +208,37 @@ function get_single_field($subjid, $project_id, $event_id = '', $field_name, $va
 	}
 }
 
+/**
+ * @param $subjid
+ * @param $project_id
+ * @param string $event_id
+ * @param $field_name
+ * @return array|null
+ */
+function get_field_values($subjid, $project_id, $event_id = '', $field_name)
+{
+	$ret_val = array();
+	$single_field_query = "SELECT value
+			FROM redcap_data
+			WHERE record = '$subjid'
+			AND project_id = '$project_id'
+			AND field_name = '$field_name'";
+	if ($event_id != '') {
+		$single_field_query .= " AND event_id = '$event_id'";
+	}
+	$single_field_result = db_query($single_field_query);
+	if ($single_field_result) {
+		while ($single_field = db_fetch_assoc($single_field_result)) {
+			if (isset($single_field['value']) && $single_field['value'] != '') {
+				$ret_val[] = $single_field['value'];
+			} else {
+				$ret_val[] = null;
+			}
+		}
+		db_free_result($single_field_result);
+	}
+	return $ret_val;
+}
 /**
  * @param string $subjid
  * @param string $field_name
@@ -357,14 +389,14 @@ function update_field_compare($subject_id, $project_id, $event_id, $value, $comp
  */
 function get_outcome()
 {
-	global $started_tx, $stopped_tx, $has_10week_results, $post_tx_plus10w_scores, $last_hcvrna_bloq, $lost_to_followup, $tx_stopped_10_wks_ago, $hcv_fu_eligible;
+	global $started_tx, $stopped_tx, $post_tx_plus10w_scores, $last_hcvrna_bloq, $lost_to_followup, $tx_stopped_10_wks_ago, $hcv_fu_eligible;
 	/**
 	 * analyze post-$svr_class-th week outcomes
 	 */
 	if ($started_tx) { // Is the patient’s TX start date recorded
 		if ($stopped_tx) { // Is the patient’s TX stop date recorded
-			if ($has_10week_results) { // Does the patient have HCV RNA result at 10 weeks or later post treatment
-				if (array_pop($post_tx_plus10w_scores) == '0' /*&& !in_array('1', $post_tx_scores)*/) { // Is the last HCV RNA at 10 weeks or later post-treatment BLOQ?
+			if (count($post_tx_plus10w_scores) > 0) { // Does the patient have HCV RNA result at 10 weeks or later post treatment
+				if (get_end_of_array($post_tx_plus10w_scores) == '0') { // Is the last HCV RNA at 10 weeks or later post-treatment BLOQ?
 					$outcome = 'SVR';
 				} else {
 					$outcome = get_failure();
@@ -372,7 +404,7 @@ function get_outcome()
 			} else {
 				if ($last_hcvrna_bloq) { // Was last recorded HCV RNA BLOQ?
 					if ($lost_to_followup || !$hcv_fu_eligible) { // Was the patient lost to follow-up?
-						/*$outcome = get_failure($on_tx_scores, $post_tx_plus10d_scores, $post_tx_scores, $eot_dsterm);*/
+						/*$outcome = get_failure();*/
 						$outcome = 'LOST TO FOLLOWUP';
 					} else { // not lost to followup
 						if ($tx_stopped_10_wks_ago) {
@@ -400,30 +432,21 @@ function get_outcome()
 function get_failure()
 {
 	global $on_tx_scores, $post_tx_plus10d_scores, $post_tx_scores, $eot_dsterm, $lost_to_followup, $hcv_fu_eligible;
-	if (in_array('0', $on_tx_scores)) { // Was BLOQ recorded at least once during treatment?
+	if (count($on_tx_scores) > 0 && in_array('0', $on_tx_scores)) { // Was BLOQ recorded at least once during treatment?
 		if (get_end_of_array($on_tx_scores) == '1') { // After BLOQ and while still on TX, was LAST HCV RNA Quantified?
 			$outcome = 'VIRAL BREAKTHROUGH';
 		} else {
 			$outcome = 'RELAPSE';
 		}
 	} else {
-		if (!empty($post_tx_scores)) { //Does the patient have ANY post-treatment HCV RNA?
-//			if (in_array('0', $post_tx_plus10d_scores)) { // Was BLOQ recorded at least once before EOT+10 days?
-//				if (get_end_of_array($on_tx_scores) == '1' || get_end_of_array($post_tx_plus10d_scores) == '1') { // While still on TX or EOT +10 days, was HCV RNA Quantified?
-//					$outcome = 'VIRAL BREAKTHROUGH';
-//				} else {
-//					$outcome = 'RELAPSE';
-//				}
-//			} else {
-//				$outcome = 'NON-RESPONDER';
-//			}
-			if (in_array('0', $post_tx_plus10d_scores)/* || count($post_tx_plus10d_scores) == 0*/) { // Was BLOQ recorded at least once before EOT+10 days or no 10-day scores?
+		if (count($post_tx_scores) > 0) { //Does the patient have ANY post-treatment HCV RNA?
+			if (count($post_tx_plus10d_scores) > 0 && in_array('0', $post_tx_plus10d_scores)) { // Was BLOQ recorded at least once before EOT+10 days or no 10-day scores?
 				if (get_end_of_array($on_tx_scores) == '1' || get_end_of_array($post_tx_plus10d_scores) == '1') { // While still on TX or EOT +10 days, was HCV RNA Quantified?
 					$outcome = 'VIRAL BREAKTHROUGH';
 				} else {
-					if (count($on_tx_scores) > 0) { // does subject have on-treatment HCVRNA
+					if (count($on_tx_scores) > 0 || (count($on_tx_scores) == 0 && in_array('0', $post_tx_scores))) { // does subject have on-treatment HCVRNA, or no on-treatment HCVRNA with BLOQ after treatment
 						$outcome = 'RELAPSE';
-					} elseif (!in_array('0', $post_tx_scores)) {
+					} elseif (count($on_tx_scores) == 0 && !in_array('0', $post_tx_scores)) {
 						$outcome = 'NON-RESPONDER';
 					}
 				}
@@ -557,7 +580,8 @@ function fix_case($text)
  */
 function create_download($lang, $app_title, $userid, $headers, $user_rights, $table_csv, $fields = '', $parent_chkd_flds, $project_id, $export_file_name, $debug, $comment = null)
 {
-	$export_type = $fields == '' ? 0 : 1;
+//	$export_type = $fields == '' ? 0 : 1;
+	$export_type = 0;
 	/**
 	 * when are we?
 	 */
@@ -581,19 +605,19 @@ function create_download($lang, $app_title, $userid, $headers, $user_rights, $ta
 	if ($user_rights['data_export_tool'] && !$debug) {
 		$table_csv = addBOMtoUTF8($headers . $table_csv);
 		$docs_size = strlen($table_csv);
-		$export_sql = "INSERT INTO redcap_docs (project_id,docs_name,docs_file,docs_date,docs_size,docs_comment,docs_type,docs_rights,export_file) " . "VALUES ($project_id, '" . $data_file_name_WH . "', NULL, '" . TODAY . "','$docs_size','" . $docs_comment_WH . "','application/csv', NULL ,$export_type)";
-		if (!db_query($export_sql)) {
-			$is_export_error = true;
-		} else {
 			/**
 			 * Store the file in the file system
 			 */
-			if (!storeExportFile($data_file_name_WH, $table_csv, db_insert_id(), $docs_size)) {
-				$is_export_error = true;
+		if (!DataExport::storeExportFile($data_file_name_WH, $table_csv, true)) {
+			log_event("", "redcap_data", "data_export", "", str_replace("'", "", $chkd_fields) . (($parent_chkd_flds == "") ? "" : ", " . str_replace("'", "", $parent_chkd_flds)), "Data Export Failed");
 			} else {
 				log_event("", "redcap_data", "data_export", "", str_replace("'", "", $chkd_fields) . (($parent_chkd_flds == "") ? "" : ", " . str_replace("'", "", $parent_chkd_flds)), "Export data");
 			}
-		}
+//		$export_sql = "INSERT INTO redcap_docs (project_id,docs_name,docs_file,docs_date,docs_size,docs_comment,docs_type,docs_rights,export_file) " . "VALUES ($project_id, '" . $data_file_name_WH . "', NULL, '" . TODAY . "','$docs_size','" . $docs_comment_WH . "','application/csv', NULL ,$export_type)";
+//		if (!db_query($export_sql)) {
+//			$is_export_error = true;
+//		} else {
+//		}
 
 		unset($table_csv);
 
@@ -723,7 +747,7 @@ function create_cdisc_download($table_name, $lang, $app_title, $userid, $user_ri
 			/**
 			 * Store the file in the file system
 			 */
-			if (!storeExportFile($data_file_name_WH, $table_csv, db_insert_id(), $docs_size)) {
+			if (!DataExport::storeExportFile($data_file_name_WH, $table_csv, db_insert_id(), $docs_size)) {
 				$is_export_error = true;
 			} else {
 				log_event("", "redcap_data", "data_export", "", str_replace("'", "", $chkd_fields) . (($parent_chkd_flds == "") ? "" : ", " . str_replace("'", "", $parent_chkd_flds)), "Export data");
@@ -1814,7 +1838,7 @@ function getFieldDataResHistoryTarget($record, $event_id, $field)
  * @param $event_name string
  * @param $debug boolean
  */
-function standardize_lab_form($form_name, $project_id, $subject, $event_name, $debug)
+function standardize_lab_form($form_name, $project_id, $subject = null, $event_name = null, $debug)
 {
 	global $no_conversion, $counts_conversion, $gdl_conversion, $iul_conversion, $bili_conversion, $creat_conversion, $gluc_conversion;
 	Kint::enabled($debug);
@@ -1829,11 +1853,14 @@ function standardize_lab_form($form_name, $project_id, $subject, $event_name, $d
 				'plat' => array('units' => '10^3/uL', 'conversion' => $counts_conversion),
 				'hemo' => array('units' => 'g/dL', 'conversion' => $gdl_conversion)
 			);
+			$stresn = '_lbstresn';
+			$stresu = '_lbstresu';
 			break;
 		case 'chemistry':
 			$labs_array = array(
 				'alt' => array('units' => 'IU/L', 'conversion' => $iul_conversion),
 				'ast' => array('units' => 'IU/L', 'conversion' => $iul_conversion),
+				'alp' => array('units' => 'IU/L', 'conversion' => $iul_conversion),
 				'tbil' => array('units' => 'mg/dL', 'conversion' => $bili_conversion),
 				'dbil' => array('units' => 'mg/dL', 'conversion' => $bili_conversion),
 				'alb' => array('units' => 'g/dL', 'conversion' => $gdl_conversion),
@@ -1842,16 +1869,65 @@ function standardize_lab_form($form_name, $project_id, $subject, $event_name, $d
 				'k' => array('units' => 'mmol/L', 'conversion' => $no_conversion),
 				'sodium' => array('units' => 'mmol/L', 'conversion' => $no_conversion)
 			);
+			$stresn = '_lbstresn';
+			$stresu = '_lbstresu';
 			break;
 		case 'hcv_rna_results':
 			$labs_array = array(
 				'hcv' => array('units' => 'IU/mL', 'conversion' => $counts_conversion)
 			);
+			$stresn = '_lbstresn';
+			$stresu = '_lbstresu';
 			break;
 		case 'inr':
 			$labs_array = array(
 				'inr' => array('units' => '', 'conversion' => $no_conversion)
 			);
+			$stresn = '_lbstresn';
+			$stresu = '_lbstresu';
+			break;
+		case 'cbc_imported':
+			$labs_array = array(
+				'wbc_im' => array('units' => '10^3/uL', 'conversion' => $counts_conversion),
+				'neut_im' => array('units' => '%', 'conversion' => $no_conversion),
+				'anc_im' => array('units' => '10^3/uL', 'conversion' => $counts_conversion),
+				'lymce_im' => array('units' => '%', 'conversion' => $no_conversion),
+				'lym_im' => array('units' => '10^3/uL', 'conversion' => $counts_conversion),
+				'plat_im' => array('units' => '10^3/uL', 'conversion' => $counts_conversion),
+				'hemo_im' => array('units' => 'g/dL', 'conversion' => $gdl_conversion)
+			);
+			$stresn = '_im_lbstresn';
+			$stresu = '_im_lbstresu';
+			break;
+		case 'chemistry_imported':
+			$labs_array = array(
+				'alt_im' => array('units' => 'IU/L', 'conversion' => $iul_conversion),
+				'ast_im' => array('units' => 'IU/L', 'conversion' => $iul_conversion),
+				'alp_im' => array('units' => 'IU/L', 'conversion' => $iul_conversion),
+				'tbil_im' => array('units' => 'mg/dL', 'conversion' => $bili_conversion),
+				'dbil_im' => array('units' => 'mg/dL', 'conversion' => $bili_conversion),
+				'alb_im' => array('units' => 'g/dL', 'conversion' => $gdl_conversion),
+				'creat_im' => array('units' => 'mg/dL', 'conversion' => $creat_conversion),
+				'gluc_im' => array('units' => 'mg/dL', 'conversion' => $gluc_conversion),
+				'k_im' => array('units' => 'mmol/L', 'conversion' => $no_conversion),
+				'sodium_im' => array('units' => 'mmol/L', 'conversion' => $no_conversion)
+			);
+			$stresn = '_im_lbstresn';
+			$stresu = '_im_lbstresu';
+			break;
+		case 'hcv_rna_imported':
+			$labs_array = array(
+				'hcv_im' => array('units' => 'IU/mL', 'conversion' => $counts_conversion)
+			);
+			$stresn = '_im_lbstresn';
+			$stresu = '_im_lbstresu';
+			break;
+		case 'inr_imported':
+			$labs_array = array(
+				'inr_im' => array('units' => '', 'conversion' => $no_conversion)
+			);
+			$stresn = '_im_lbstresn';
+			$stresu = '_im_lbstresu';
 			break;
 		case 'clinical_and_lab_data':
 		case 'clinical_lab_followup':
@@ -1867,9 +1943,13 @@ function standardize_lab_form($form_name, $project_id, $subject, $event_name, $d
 				'plat' => array('units' => '10^3/uL', 'conversion' => $counts_conversion),
 				'hemo' => array('units' => 'g/dL', 'conversion' => $gdl_conversion)
 			);
+			$stresn = '_lbstresn';
+			$stresu = '_lbstresu';
 			break;
 		default:
 			$labs_array = array();
+			$stresn = '';
+			$stresu = '';
 			break;
 	}
 	if (!empty($labs_array)) {
@@ -1897,6 +1977,7 @@ function standardize_lab_form($form_name, $project_id, $subject, $event_name, $d
 					$pairs[substr($field, 0, strpos($field, '_'))][substr($field, strrpos($field, '_') + 1)] = trim($value);
 				}
 				foreach ($pairs AS $prefix => $this_lab) {
+					d($this_lab);
 					$has_valid_units = false;
 					/**
 					 * if $this_lab has both value and units:
@@ -1984,21 +2065,21 @@ function standardize_lab_form($form_name, $project_id, $subject, $event_name, $d
 							$has_valid_units = true;
 						}
 						if ($has_valid_units) {
-							update_field_compare($subjid, $project_id, $event_id, $lbstresn, $this_lab['lbstresn'], $prefix . '_lbstresn', $debug);
-							update_field_compare($subjid, $project_id, $event_id, $lbstresu, $this_lab['lbstresu'], $prefix . '_lbstresu', $debug);
+							update_field_compare($subjid, $project_id, $event_id, $lbstresn, $this_lab['lbstresn'], $prefix . $stresn, $debug);
+							update_field_compare($subjid, $project_id, $event_id, $lbstresu, $this_lab['lbstresu'], $prefix . $stresu, $debug);
 						}
 					} elseif ($this_lab['lborresu'] == '' && $this_lab['lborres'] != '') {
 						/**
 						 * NO BLANK UNITS
 						 */
-						update_field_compare($subjid, $project_id, $event_id, '', $this_lab['lbstresn'], $prefix . '_lbstresn', $debug);
-						update_field_compare($subjid, $project_id, $event_id, '', $this_lab['lbstresu'], $prefix . '_lbstresu', $debug);
+						update_field_compare($subjid, $project_id, $event_id, '', $this_lab['lbstresn'], $prefix . $stresn, $debug);
+						update_field_compare($subjid, $project_id, $event_id, '', $this_lab['lbstresu'], $prefix . $stresu, $debug);
 					} else {
 						if ($this_lab['lborres'] == '' && $this_lab['lbstresn'] != '') {
-							update_field_compare($subjid, $project_id, $event_id, $this_lab['lborres'], $this_lab['lbstresn'], $prefix . '_lbstresn', $debug);
+							update_field_compare($subjid, $project_id, $event_id, $this_lab['lborres'], $this_lab['lbstresn'], $prefix . $stresn, $debug);
 						}
 						if ($this_lab['lborresu'] == '' && $this_lab['lbstresu'] != '') {
-							update_field_compare($subjid, $project_id, $event_id, $this_lab['lborresu'], $this_lab['lbstresu'], $prefix . '_lbstresu', $debug);
+							update_field_compare($subjid, $project_id, $event_id, $this_lab['lborresu'], $this_lab['lbstresu'], $prefix . $stresu, $debug);
 						}
 					}
 				}
@@ -2608,6 +2689,19 @@ function get_end_of_array(&$array)
 	return $return_val;
 }
 
+function get_first_of_array(&$array)
+{
+	if (!is_array($array)) {
+		$return_val = &$array;
+	} elseif (!count($array)) {
+		$return_val = null;
+	} else {
+		reset($array);
+		$return_val = &$array[key($array)];
+	}
+	return $return_val;
+}
+
 /**
  * @param $record
  * @param $debug
@@ -2662,7 +2756,13 @@ function set_tx_data($record, $debug)
 			 * Age at start of treatment
 			 * age_suppvs_age
 			 */
-			$birth_year = $subject[$baseline_event_id]['dm_brthyr'];
+			if ($subject[$baseline_event_id]['dm_brthyr'] != '') {
+				$birth_year = $subject[$baseline_event_id]['dm_brthyr'];
+			} elseif ($subject[$baseline_event_id]['dm_brthdtc'] != '') {
+				$birth_year = substr($subject[$baseline_event_id]['dm_brthdtc'], 0, 4);
+			} else {
+				$birth_year = '';
+			}
 			if (isset($birth_year) && $birth_year != '') {
 				$tx_start_year = substr($tx_start_date, 0, 4);
 				$age_at_start = ($tx_start_year - $birth_year) > 0 ? $tx_start_year - $birth_year : null;
@@ -2823,63 +2923,6 @@ function set_bmi($record, $debug)
 
 /**
  * @param $record
- * @param null $save_event_id
- * @param $debug
- */
-function set_crcl($record, $save_event_id = null, $debug)
-{
-	/**
-	 * derives CRCL for a single event if $save_event_id is set. Derives CRCL for all events if $save_event_id = null
-	 */
-	global $Proj, $project_id, $dm_array, $chem_fields, $bmi_array;
-	$enable_kint = $debug && (isset($record) && $record != '') ? true : false;
-	Kint::enabled($enable_kint);
-	$baseline_event_id = $Proj->firstEventId;
-	$fields = array_merge($dm_array, $chem_fields, $bmi_array);
-	$save_event_id = isset($save_event_id) && $save_event_id != $baseline_event_id ? array($baseline_event_id, $save_event_id) : $save_event_id;
-	$data = REDCap::getData('array', $record, $fields, $save_event_id);
-	if ($debug) {
-		error_log(print_r($data, TRUE));
-	}
-	foreach ($data AS $subject_id => $subject) {
-		$chem_values = array();
-		foreach ($subject AS $event_id => $event) {
-			/**
-			 * build $chem_values
-			 */
-			foreach ($chem_fields AS $chem_field_name) {
-				if ($event[$chem_field_name] != '') {
-					$chem_values[$event_id][$chem_field_name] = $event[$chem_field_name];
-				}
-			}
-		}
-		/**
-		 * Creatinine Clearance (Cockcroft-Gault Equation)
-		 * IF([chem_lbdtc] = "", null, round(((140 - ([chem_lbdtc].substring(0,4) - [brthyr])) * [weight_suppvs_wtkg] * (IF([dm_sex] = "0", .85, 1)) / (72 * [creat_lbstresn])), 0))
-		 */
-		if ($subject[$baseline_event_id]['dm_brthyr'] != '' && $subject[$baseline_event_id]['weight_suppvs_wtkg'] != '') {
-			foreach ($chem_values as $chem_event => $values) {
-				$creatinine_clearance = null;
-				$sex = isset($subject[$baseline_event_id]['dm_sex']) ? $subject[$baseline_event_id]['dm_sex'] : 'F';
-				$sex_factor = $sex == 'F' ? .85 : 1;
-				if ($values['chem_lbdtc'] != '' && $values['creat_lbstresn'] != '') {
-					$chem_age = (substr($values['chem_lbdtc'], 0, 4)) - $subject[$baseline_event_id]['dm_brthyr'];
-					$creatinine_clearance = round(((140 - $chem_age) * $subject[$baseline_event_id]['weight_suppvs_wtkg'] * $sex_factor) / (72 * $values['creat_lbstresn']));
-				}
-				update_field_compare($subject_id, $project_id, $chem_event, $creatinine_clearance, $values['crcl_lborres'], 'crcl_lborres', $debug);
-				$creatinine_im_clearance = null;
-				if ($values['chem_im_lbdtc'] != '' && $values['creat_im_lbstresn'] != '') {
-					$chem_im_age = (substr($values['chem_im_lbdtc'], 0, 4)) - $subject[$baseline_event_id]['dm_brthyr'];
-					$creatinine_im_clearance = round(((140 - $chem_im_age) * $subject[$baseline_event_id]['weight_suppvs_wtkg'] * $sex_factor) / (72 * $values['creat_im_lbstresn']));
-				}
-				update_field_compare($subject_id, $project_id, $chem_event, $creatinine_im_clearance, $values['crcl_im_lborres'], 'crcl_im_lborres', $debug);
-			}
-		}
-	}
-}
-
-/**
- * @param $record
  * @param $debug
  */
 function set_svr_dates($record, $debug)
@@ -2905,6 +2948,7 @@ function set_svr_dates($record, $debug)
 					$hcv_values[$event_id][$hcv_field] = $event[$hcv_field];
 				}
 			}
+			d($hcv_values);
 			/**
 			 * SVR 12 and 24 dates
 			 * hcv_supplb_hcvdtct, hcv_lbdtc, ifn_cmendtc, hcv_suppfa_svr12dt
@@ -2919,6 +2963,7 @@ function set_svr_dates($record, $debug)
 				$upper_date = new DateTime($stop_date);
 				$upper_date->add(new DateInterval("P" . ($svr_class + $svr_range) . "D"));
 				$upper_svr_date = $upper_date->format('Y-m-d');
+				d($svr_field, $upper_svr_date);
 				foreach ($hcv_values as $event) {
 					if ($event['hcv_lbdtc'] != '') {
 						$date_obj = new DateTime($event['hcv_lbdtc']);
@@ -2926,7 +2971,8 @@ function set_svr_dates($record, $debug)
 						if ($lower_svr_date <= $svr_date && $svr_date <= $upper_svr_date) {
 							$hcv_dates_array[] = $svr_date;
 						}
-					} elseif ($event['hcv_im_lbdtc'] != '' && empty($hcv_dates_array)) {
+					}
+					if ($event['hcv_im_lbdtc'] != '' && empty($hcv_dates_array)) {
 						$date_obj = new DateTime($event['hcv_im_lbdtc']);
 						$svr_date = $date_obj->format('Y-m-d');
 						if ($lower_svr_date <= $svr_date && $svr_date <= $upper_svr_date) {
@@ -2965,7 +3011,6 @@ function set_cirrhosis($record, $debug)
 		$fibrosis_scale = null;
 		$secondary_indications = array();
 		$force_cirrhotic = isset($subject[$baseline_event_id]['cirr_suppfa_cirrovrd']) && $subject[$baseline_event_id]['cirr_suppfa_cirrovrd'] == 'Y' ? true : false;
-		if (!$force_cirrhotic) {
 			$had_biopsy = isset($subject[$baseline_event_id]['livbp_mhoccur']) && $subject[$baseline_event_id]['livbp_mhoccur'] == 'Y' ? true : false;
 			if ($subject[$baseline_event_id]['livbp_facat'] != '' && $subject[$baseline_event_id]['livbp_faorres'] != '') {
 				/**
@@ -3041,15 +3086,17 @@ function set_cirrhosis($record, $debug)
 			/**
 			 * determine whether subject is cirrhotic, based upon protocol standard
 			 */
-			if ($had_biopsy && (isset($fibrosis_scale) && $fibrosis_scale >= '4')) {
+		if ($had_biopsy && (isset($fibrosis_scale) && $fibrosis_scale >= '4')
+		|| ($had_biopsy && (isset($fibrosis_scale) && $fibrosis_scale == '3') && count($secondary_indications) >= 1)
+		|| (count($secondary_indications) >= 2)
+		|| $force_cirrhotic) {
 				$cirrhotic = 'Y';
-			} elseif ($had_biopsy && (isset($fibrosis_scale) && $fibrosis_scale == '3') && count($secondary_indications) >= 1) {
+		/*} elseif ($had_biopsy && (isset($fibrosis_scale) && $fibrosis_scale == '3') && count($secondary_indications) >= 1) {
 				$cirrhotic = 'Y';
 			} elseif (count($secondary_indications) >= 2) {
 				$cirrhotic = 'Y';
-			}
-		} else {
-			$cirrhotic = 'Y';
+		} elseif ($force_cirrhotic) {
+			$cirrhotic = 'Y';*/
 		}
 		update_field_compare($subject_id, $project_id, $baseline_event_id, $cirrhotic, $subject[$baseline_event_id]['cirr_suppfa_cirrstat'], 'cirr_suppfa_cirrstat', $debug);
 	}
@@ -3096,6 +3143,7 @@ function set_deltas($record, $debug)
 				}
 			}
 		}
+		d($baselines);
 		foreach ($subject AS $event_id => $event) {
 			foreach (array_keys($thresholds) AS $lab_prefix) {
 				$threshold = $thresholds[$lab_prefix]['threshold'];
@@ -3116,7 +3164,6 @@ function set_deltas($record, $debug)
 		}
 	}
 	d($thresholds);
-	d($baselines);
 	d($all_deltas);
 	foreach ($all_deltas AS $subject_id => $lab_prefix) {
 		foreach ($lab_prefix AS $prefix => $had_delta) {
@@ -3133,7 +3180,7 @@ function set_deltas($record, $debug)
 function set_treatment_exp($record, $debug)
 {
 	global $Proj, $project_id;
-	$trt_exp_array = array('pegifn_mhoccur', 'triple_mhoccur', 'nopegifn_mhoccur', 'dm_suppdm_trtexp');
+	$trt_exp_array = array('simsof_mhoccur', 'simsofrbv_mhoccur', 'pegifn_mhoccur', 'triple_mhoccur', 'nopegifn_mhoccur', 'dm_suppdm_trtexp');
 	$enable_kint = $debug && (isset($record) && $record != '') ? true : false;
 	Kint::enabled($enable_kint);
 	$baseline_event_id = $Proj->firstEventId;
@@ -3147,7 +3194,7 @@ function set_treatment_exp($record, $debug)
 		 */
 		$experienced = false;
 		foreach ($subject AS $event_id => $event) {
-			if ($event['pegifn_mhoccur'] == 'Y' || $event['triple_mhoccur'] == 'Y' || $event['nopegifn_mhoccur'] == 'Y') {
+			if ($event['simsof_mhoccur'] == 'Y' || $event['simsofrbv_mhoccur'] == 'Y' || $event['pegifn_mhoccur'] == 'Y' || $event['triple_mhoccur'] == 'Y' || $event['nopegifn_mhoccur'] == 'Y') {
 				$experienced = true;
 			}
 		}
@@ -3158,21 +3205,31 @@ function set_treatment_exp($record, $debug)
 
 /**
  * @param $record
- * @param $save_event_id
+ * @param null $save_event_id
+ * @param string $formtype 'abstracted', 'imported' or 'both'
  * @param $debug
  */
-function set_egfr($record, $save_event_id = null, $debug) {
-	global $Proj, $project_id;
+function set_egfr($record, $save_event_id = null, $formtype = 'both', $debug)
+{
+	global $Proj, $project_id, $egfr_fields, $egfr_im_fields;
 	$baseline_event_id = $Proj->firstEventId;
 	$enable_kint = $debug && (isset($record) && $record != '') ? true : false;
 	Kint::enabled($enable_kint);
 	$save_event_id = isset($save_event_id) && $save_event_id != $baseline_event_id ? array($baseline_event_id, $save_event_id) : $save_event_id;
-	$dm_array = array('dm_rfstdtc', 'dm_race', 'dm_sex', 'age_suppvs_age', 'dis_dsstdy');
-	$egfr_fields = array('chem_lbdtc', 'egfr_lborres', 'creat_lbstresn', 'egfr_lbblfl', 'creat_lbblfl', 'egfr_im_lborres', 'egfr_im_lbblfl', 'chem_im_lbdtc', 'creat_im_lbstresn', 'creat_im_nxtrust');
+	$dm_array = array('dm_rfstdtc', 'dm_race', 'dm_sex', 'age_suppvs_age', 'dis_dsstdy', 'creat_supplb_lbdtbl');
+	switch ($formtype) {
+		case 'both':
+			$egfr_fields = array_merge($egfr_fields, $egfr_im_fields);
+			break;
+		case 'imported':
+			$egfr_fields = $egfr_im_fields;
+			break;
+		default:
+			break;
+	}
 	$fields = array_merge($dm_array, $egfr_fields);
 	$data = REDCap::getData('array', $record, $fields, $save_event_id);
 	foreach ($data AS $subject_id => $subject) {
-		d($subject_id);
 		/**
 		 * SUBJECT-LEVEL vars
 		 */
@@ -3180,46 +3237,287 @@ function set_egfr($record, $save_event_id = null, $debug) {
 		$race = $subject[$baseline_event_id]['dm_race'];
 		$sex = $subject[$baseline_event_id]['dm_sex'];
 		$age = $subject[$baseline_event_id]['age_suppvs_age'];
+		$creat_bl_date = $subject[$baseline_event_id]['creat_supplb_lbdtbl'];
 		$race_factor = $race == 'BLACK_OR_AFRICAN_AMERICAN' ? 1.212 : 1;
 		$sex_factor = $sex == 'F' ? 0.742 : 1;
+		$chem_values = array();
 		/**
 		 * EVENT LEVEL ACTIONS
 		 */
 		if (isset($tx_start_date) && $tx_start_date != '') {
 			foreach ($subject AS $event_id => $event) {
-				if ($event['creat_lbstresn'] != '') {
-					if ($race != '' && $sex != '' && $age != '') {
-						$egfr = round((175 * pow($event['creat_lbstresn'], -1.154) * pow($age, -.203) * $sex_factor * $race_factor), 2);
-					} else {
-						$egfr = '';
-					}
-					update_field_compare($subject_id, $project_id, $event_id, $egfr, $event['egfr_lborres'], 'egfr_lborres', $debug);
-					$is_baseline = ($event['creat_lbblfl'] == 'Y' && $egfr != '') ? 'Y' : '';
-					update_field_compare($subject_id, $project_id, $event_id, $is_baseline, $event['egfr_lbblfl'], 'egfr_lbblfl', $debug);
-				} elseif ($event['creat_lbstresn'] == '') {
-					$egfr = '';
-					update_field_compare($subject_id, $project_id, $event_id, $egfr, $event['egfr_lborres'], 'egfr_lborres', $debug);
-					$is_baseline = ($event['creat_lbblfl'] == 'Y' && $egfr != '') ? 'Y' : '';
-					update_field_compare($subject_id, $project_id, $event_id, $is_baseline, $event['egfr_lbblfl'], 'egfr_lbblfl', $debug);
-				}
 				/**
-				 * for egfr from imported, we need a standardized creat, it must be numeric and the trust field must not be 'N'
+				 * build $chem_values
 				 */
-				if ($event['creat_im_lbstresn'] != '' && is_numeric($event['creat_im_lbstresn']) && $event['creat_im_nxtrust'] != 'N') {
-					if ($race != '' && $sex != '' && $age != '') {
-						$egfr = round((175 * pow($event['creat_im_lbstresn'], -1.154) * pow($age, -.203) * $sex_factor * $race_factor), 2);
-					} else {
-						$egfr = '';
+				foreach ($egfr_fields AS $chem_field_name) {
+					if ($event[$chem_field_name] != '') {
+						$chem_values[$event_id][$chem_field_name] = $event[$chem_field_name];
 					}
-					update_field_compare($subject_id, $project_id, $event_id, $egfr, $event['egfr_im_lborres'], 'egfr_im_lborres', $debug);
-					$is_baseline = ($event['creat_im_lbblfl'] == 'Y' && $egfr != '') ? 'Y' : '';
-					update_field_compare($subject_id, $project_id, $event_id, $is_baseline, $event['egfr_im_lbblfl'], 'egfr_im_lbblfl', $debug);
-				} elseif ($event['creat_im_lbstresn'] == '') {
-					$egfr = '';
-					update_field_compare($subject_id, $project_id, $event_id, $egfr, $event['egfr_im_lborres'], 'egfr_im_lborres', $debug);
-					$is_baseline = ($event['creat_im_lbblfl'] == 'Y' && $egfr != '') ? 'Y' : '';
-					update_field_compare($subject_id, $project_id, $event_id, $is_baseline, $event['egfr_im_lbblfl'], 'egfr_im_lbblfl', $debug);
 				}
+			}
+			foreach ($chem_values as $chem_event => $values) {
+				if ($formtype == 'abstracted' || $formtype == 'both') {
+					d($values);
+					$egfr = '';
+					$is_baseline = '';
+					if ($values['creat_lbstresn'] != '' && is_numeric($values['creat_lbstresn'])) {
+						if (isset($creat_bl_date) && $creat_bl_date != '' && $creat_bl_date == $values['chem_lbdtc']) {
+							$is_baseline = 'Y';
+						}
+						if ($race != '' && $sex != '' && $age != '') {
+							$egfr = round((175 * pow($values['creat_lbstresn'], -1.154) * pow($age, -.203) * $sex_factor * $race_factor), 2);
+						}
+					}
+					update_field_compare($subject_id, $project_id, $chem_event, $egfr, $values['egfr_lborres'], 'egfr_lborres', $debug);
+					update_field_compare($subject_id, $project_id, $chem_event, $is_baseline, $values['egfr_lbblfl'], 'egfr_lbblfl', $debug);
+				}
+				if ($formtype == 'imported' || $formtype == 'both') {
+					d($values);
+					/**
+					 * for egfr from imported, we need a standardized creat, it must be numeric and the trust field must not be 'N'
+					 */
+					$egfr = '';
+					$is_baseline = '';
+					if ($values['creat_im_lbstresn'] != '' && is_numeric($values['creat_im_lbstresn']) && $values['creat_im_nxtrust'] != 'N') {
+						if (isset($creat_bl_date) && $creat_bl_date != '' && $creat_bl_date == $values['chem_im_lbdtc']) {
+							$is_baseline = 'Y';
+						}
+						if ($race != '' && $sex != '' && $age != '') {
+							$egfr = round((175 * pow($values['creat_im_lbstresn'], -1.154) * pow($age, -.203) * $sex_factor * $race_factor), 2);
+						}
+					}
+					update_field_compare($subject_id, $project_id, $chem_event, $egfr, $values['egfr_im_lborres'], 'egfr_im_lborres', $debug);
+					update_field_compare($subject_id, $project_id, $chem_event, $is_baseline, $values['egfr_im_lbblfl'], 'egfr_im_lbblfl', $debug);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * @param $record
+ * @param null $save_event_id
+ * @param string $formtype 'abstracted', 'imported' or 'both'
+ * @param $debug
+ */
+function set_crcl($record, $save_event_id = null, $formtype = 'both', $debug)
+{
+	/**
+	 * derives CRCL for a single event if $save_event_id is set. Derives CRCL for all events if $save_event_id = null
+	 */
+	global $Proj, $project_id, $dm_array, $crcl_fields, $crcl_im_fields, $bmi_array;
+	$enable_kint = $debug && (isset($record) && $record != '') ? true : false;
+	Kint::enabled($enable_kint);
+	$baseline_event_id = $Proj->firstEventId;
+	switch ($formtype) {
+		case 'both':
+			$crcl_fields = array_merge($crcl_fields, $crcl_im_fields);
+			break;
+		case 'imported':
+			$crcl_fields = $crcl_im_fields;
+			break;
+		default:
+			break;
+	}
+	$fields = array_merge($dm_array, $crcl_fields, $bmi_array, array('creat_supplb_lbdtbl'));
+	$save_event_id = isset($save_event_id) && $save_event_id != $baseline_event_id ? array($baseline_event_id, $save_event_id) : $save_event_id;
+	$data = REDCap::getData('array', $record, $fields, $save_event_id);
+	if ($debug) {
+		error_log(print_r($data, TRUE));
+	}
+	foreach ($data AS $subject_id => $subject) {
+		$chem_values = array();
+		$sex = isset($subject[$baseline_event_id]['dm_sex']) ? $subject[$baseline_event_id]['dm_sex'] : 'F';
+		$sex_factor = $sex == 'F' ? .85 : 1;
+		$creat_bl_date = $subject[$baseline_event_id]['creat_supplb_lbdtbl'];
+		foreach ($subject AS $event_id => $event) {
+			/**
+			 * build $chem_values
+			 */
+			foreach ($crcl_fields AS $chem_field_name) {
+				if ($event[$chem_field_name] != '') {
+					$chem_values[$event_id][$chem_field_name] = $event[$chem_field_name];
+				}
+			}
+		}
+		/**
+		 * Creatinine Clearance (Cockcroft-Gault Equation)
+		 * IF([chem_lbdtc] = "", null, round(((140 - ([chem_lbdtc].substring(0,4) - [brthyr])) * [weight_suppvs_wtkg] * (IF([dm_sex] = "0", .85, 1)) / (72 * [creat_lbstresn])), 0))
+		 */
+		if ($subject[$baseline_event_id]['dm_brthyr'] != '') {
+			$birth_year = $subject[$baseline_event_id]['dm_brthyr'];
+		} elseif ($subject[$baseline_event_id]['dm_brthdtc'] != '') {
+			$birth_year = substr($subject[$baseline_event_id]['dm_brthdtc'], 0, 4);
+		} else {
+			$birth_year = '';
+		}
+		if ($birth_year != '' && $subject[$baseline_event_id]['weight_suppvs_wtkg'] != '') {
+			foreach ($chem_values as $chem_event => $values) {
+				if ($formtype == 'imported' || $formtype == 'both') {
+					$is_baseline = '';
+					$creatinine_im_clearance = null;
+					if ($values['chem_im_lbdtc'] != '' && $values['creat_im_lbstresn'] != '') {
+						if (isset($creat_bl_date) && $creat_bl_date != '' && $creat_bl_date == $values['chem_im_lbdtc']) {
+							$is_baseline = 'Y';
+						}
+						$chem_im_age = (substr($values['chem_im_lbdtc'], 0, 4)) - $birth_year;
+						$creatinine_im_clearance = round(((140 - $chem_im_age) * $subject[$baseline_event_id]['weight_suppvs_wtkg'] * $sex_factor) / (72 * $values['creat_im_lbstresn']));
+					}
+					update_field_compare($subject_id, $project_id, $chem_event, $creatinine_im_clearance, $values['crcl_im_lborres'], 'crcl_im_lborres', $debug);
+					update_field_compare($subject_id, $project_id, $chem_event, $is_baseline, $values['crcl_im_lbblfl'], 'crcl_im_lbblfl', $debug);
+				}
+				if ($formtype == 'abstracted' || $formtype == 'both') {
+					$is_baseline = '';
+					$creatinine_clearance = null;
+					if ($values['chem_lbdtc'] != '' && $values['creat_lbstresn'] != '') {
+						if (isset($creat_bl_date) && $creat_bl_date != '' && $creat_bl_date == $values['chem_lbdtc']) {
+							$is_baseline = 'Y';
+						}
+						$chem_age = (substr($values['chem_lbdtc'], 0, 4)) - $birth_year;
+						$creatinine_clearance = round(((140 - $chem_age) * $subject[$baseline_event_id]['weight_suppvs_wtkg'] * $sex_factor) / (72 * $values['creat_lbstresn']));
+					}
+					update_field_compare($subject_id, $project_id, $chem_event, $creatinine_clearance, $values['crcl_lborres'], 'crcl_lborres', $debug);
+					update_field_compare($subject_id, $project_id, $chem_event, $is_baseline, $values['crcl_lbblfl'], 'crcl_lbblfl', $debug);
+				}
+			}
+		}
+	}
+}
+
+function set_dag($record, $instrument, $debug) {
+	global $project_id;
+	/**
+	 * SET Data Access Group based upon dm_usubjid prefix
+	 */
+	$fields = array('dm_usubjid');
+	$data = REDCap::getData('array', $record, $fields);
+	foreach ($data AS $subject) {
+		foreach ($subject AS $event_id => $event) {
+			if ($event['dm_usubjid'] != '') {
+				/**
+				 * find which DAG this subject belongs to
+				 */
+				$site_prefix = substr($event['dm_usubjid'], 0, 3) . '%';
+				$dag_query = "SELECT group_id, group_name FROM redcap_data_access_groups WHERE project_id = '$project_id' AND group_name LIKE '$site_prefix'";
+				$dag_result = db_query($dag_query);
+				if ($dag_result) {
+					$dag = db_fetch_assoc($dag_result);
+					if (isset($dag['group_id'])) {
+						/**
+						 * For each event in project for this subject, determine if this subject_id has been added to its appropriate DAG. If it hasn't, make it so.
+						 * First, we need a list of events for which this subject has data
+						 */
+						$subject_events_query = "SELECT DISTINCT event_id FROM redcap_data WHERE project_id = '$project_id' AND record = '$record' AND field_name = '" . $instrument . "_complete'";
+						$subject_events_result = db_query($subject_events_query);
+						if ($subject_events_result) {
+							while ($subject_events_row = db_fetch_assoc($subject_events_result)) {
+								if (isset($subject_events_row['event_id'])) {
+									$_GET['event_id'] = $subject_events_row['event_id']; // for logging
+									/**
+									 * The subject has data in this event_id
+									 * does the subject have corresponding DAG assignment?
+									 */
+									$has_event_data_query = "SELECT DISTINCT event_id FROM redcap_data WHERE project_id = '$project_id' AND record = '$record' AND event_id = '" . $subject_events_row['event_id'] . "' AND field_name = '__GROUPID__'";
+									$has_event_data_result = db_query($has_event_data_query);
+									if ($has_event_data_result) {
+										$has_event_data = db_fetch_assoc($has_event_data_result);
+										if (!isset($has_event_data['event_id'])) {
+											/**
+											 * Subject does not have a matching DAG assignment for this data
+											 * construct proper matching __GROUPID__ record and insert
+											 */
+											$insert_dag_query = "INSERT INTO redcap_data SET record = '$record', event_id = '" . $subject_events_row['event_id'] . "', value = '" . $dag['group_id'] . "', project_id = '$project_id', field_name = '__GROUPID__'";
+											if (!$debug) {
+												if (db_query($insert_dag_query)) {
+													target_log_event($insert_dag_query, 'redcap_data', 'insert', $record, $dag['group_name'], 'Assign record to Data Access Group (' . $dag['group_name'] . ')');
+													show_var($insert_dag_query, '', 'green');
+												} else {
+													error_log("SQL INSERT FAILED: " . db_error() . "\n");
+													echo db_error() . "\n";
+												}
+											} else {
+												show_var($insert_dag_query);
+												error_log('(TESTING) NOTICE: ' . $insert_dag_query);
+											}
+										}
+										db_free_result($has_event_data_result);
+									}
+								}
+							}
+							db_free_result($subject_events_result);
+						}
+					}
+					db_free_result($dag_result);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * @param $record
+ * @param null $form_event
+ * @param $debug
+ */
+function set_immunosuppressant($record, $form_event = null, $debug)
+{
+	global $project_id;
+	/**
+	 * immunosuppressive?
+	 */
+	$fields = array('cm_cmdecod', 'cm_suppcm_cmimmuno');
+	$data = REDCap::getData('array', $record, $fields, $form_event);
+	foreach ($data AS $subject_id => $subject) {
+		foreach ($subject AS $event_id => $event) {
+			if ($event['cm_cmdecod'] != '') {
+				$immun_flag = 'N';
+				$immun_meds = array();
+				$immun_meds_result = db_query("SELECT * FROM _target_meds_of_interest WHERE cm_cmcat NOT IN ('steroid', 'PPI') AND cm_cmtrt = '{$event['cm_cmdecod']}'");
+				if ($immun_meds_result) {
+					while ($immun_meds_row = db_fetch_assoc($immun_meds_result)) {
+						$immun_meds[] = $immun_meds_row['cm_cmtrt'];
+					}
+					db_free_result($immun_meds_result);
+				}
+				if (count($immun_meds) != 0) {
+					$immun_flag = 'Y';
+					d($immun_meds);
+				}
+				update_field_compare($subject_id, $project_id, $event_id, $immun_flag, $event['cm_suppcm_cmimmuno'], 'cm_suppcm_cmimmuno', $debug);
+			}
+		}
+	}
+}
+
+/**
+ * @param $record
+ * @param $form_event
+ * @param $debug
+ */
+function set_ppi($record, $form_event = null, $debug)
+{
+	global $project_id;
+	/**
+	 * Proton pump inhibitor?
+	 */
+	$fields = array('cm_cmdecod', 'cm_suppcm_cmppi');
+	$data = REDCap::getData('array', $record, $fields, $form_event);
+	foreach ($data AS $subject_id => $subject) {
+		foreach ($subject AS $event_id => $event) {
+			if ($event['cm_cmdecod'] != '') {
+				$ppi_flag = 'N';
+				$ppi_meds = array();
+				$ppi_meds_result = db_query("SELECT * FROM _target_meds_of_interest WHERE cm_cmcat = 'PPI' AND cm_cmtrt = '{$event['cm_cmdecod']}'");
+				if ($ppi_meds_result) {
+					while ($ppi_meds_row = db_fetch_assoc($ppi_meds_result)) {
+						$ppi_meds[] = $ppi_meds_row['cm_cmtrt'];
+					}
+					db_free_result($ppi_meds_result);
+				}
+				if (count($ppi_meds) != 0) {
+					$ppi_flag = 'Y';
+				}
+				update_field_compare($subject_id, $project_id, $event_id, $ppi_flag, $event['cm_suppcm_cmppi'], 'cm_suppcm_cmppi', $debug);
 			}
 		}
 	}

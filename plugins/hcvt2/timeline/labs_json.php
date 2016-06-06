@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 4/9/14
  * Time: 11:55 AM
@@ -12,7 +12,6 @@ $base_path = dirname(dirname(dirname(dirname(__FILE__))));
 require_once $base_path . "/redcap_connect.php";
 require_once $base_path . '/plugins/includes/functions.php';
 require_once $base_path . '/plugins/includes/timeline_functions.php';
-require_once APP_PATH_DOCROOT . '/Config/init_project.php';
 /**
  * variables
  */
@@ -76,7 +75,7 @@ foreach ($data AS $subject) {
 		$desc_array = array();
 		$url = APP_PATH_WEBROOT_FULL . "redcap_v" . $redcap_version . "/DataEntry/index.php?pid=$project_id&page=cbc&id=$subjid&event_id=$event_id";
 		foreach ($event AS $field => $item) {
-			$prefix = substr($field, 0, strpos($field, '_')+1);
+			$prefix = substr($field, 0, strpos($field, '_') + 1);
 			if ($item != '' && !in_array($field, array('cbc_lbdtc', 'wbc_lbstresu', 'neut_lbstresu', 'anc_lbstresu', 'lymce_lbstresu', 'lym_lbstresu', 'plat_lbstresu', 'hemo_lbstresu'))) {
 				$desc_array[] = get_field_label($field, $project_id) . ': <strong>' . $item . ' ' . $event[$prefix . 'lbstresu'] . "</strong>";
 			}
@@ -109,7 +108,7 @@ foreach ($data AS $subject) {
 /**
  * Chemistry
  */
-$fields = array('chem_lbdtc', 'alt_lbstresn', 'alt_lbstresu', 'ast_lbstresn', 'ast_lbstresu', 'tbil_lbstresn', 'tbil_lbstresu', 'dbil_lbstresn', 'dbil_lbstresu', 'alb_lbstresn', 'alb_lbstresu', 'creat_lbstresn', 'creat_lbstresu', 'gluc_lbstresn', 'gluc_lbstresu', 'k_lbstresn', 'k_lbstresu', 'sodium_lbstresn', 'sodium_lbstresu');
+$fields = array('chem_lbdtc', 'alt_lbstresn', 'alt_lbstresu', 'ast_lbstresn', 'ast_lbstresu', 'alp_lbstresn', 'alp_lbstresu', 'tbil_lbstresn', 'tbil_lbstresu', 'dbil_lbstresn', 'dbil_lbstresu', 'alb_lbstresn', 'alb_lbstresu', 'creat_lbstresn', 'creat_lbstresu', 'gluc_lbstresn', 'gluc_lbstresu', 'k_lbstresn', 'k_lbstresu', 'sodium_lbstresn', 'sodium_lbstresu');
 $data = REDCap::getData('array', $subjid, $fields);
 foreach ($data AS $subject) {
 	foreach ($subject AS $event_id => $event) {
@@ -117,7 +116,7 @@ foreach ($data AS $subject) {
 		$url = APP_PATH_WEBROOT_FULL . "redcap_v" . $redcap_version . "/DataEntry/index.php?pid=$project_id&page=chemistry&id=$subjid&event_id=$event_id";
 		foreach ($event AS $field => $item) {
 			$prefix = substr($field, 0, strpos($field, '_') + 1);
-			if ($item != '' && !in_array($field, array('chem_lbdtc', 'alt_lbstresu', 'ast_lbstresu', 'tbil_lbstresu', 'dbil_lbstresu', 'alb_lbstresu', 'creat_lbstresu', 'gluc_lbstresu', 'k_lbstresu', 'sodium_lbstresu'))) {
+			if ($item != '' && !in_array($field, array('chem_lbdtc', 'alt_lbstresu', 'ast_lbstresu', 'alp_lbstresu', 'tbil_lbstresu', 'dbil_lbstresu', 'alb_lbstresu', 'creat_lbstresu', 'gluc_lbstresu', 'k_lbstresu', 'sodium_lbstresu'))) {
 				$desc_array[] = get_field_label($field, $project_id) . ': <strong>' . $item . ' ' . $event[$prefix . 'lbstresu'] . "</strong>";
 			}
 		}
@@ -129,7 +128,7 @@ foreach ($data AS $subject) {
 /**
  * Chemistry imported
  */
-$fields = array('chem_im_lbdtc', 'alt_im_lbstresn', 'alt_im_lbstresu', 'ast_im_lbstresn', 'ast_im_lbstresu', 'tbil_im_lbstresn', 'tbil_im_lbstresu', 'dbil_im_lbstresn', 'dbil_im_lbstresu', 'alb_im_lbstresn', 'alb_im_lbstresu', 'creat_im_lbstresn', 'creat_im_lbstresu', 'gluc_im_lbstresn', 'gluc_im_lbstresu', 'k_im_lbstresn', 'k_im_lbstresu', 'sodium_im_lbstresn', 'sodium_im_lbstresu');
+$fields = array('chem_im_lbdtc', 'alt_im_lbstresn', 'alt_im_lbstresu', 'ast_im_lbstresn', 'ast_im_lbstresu', 'alp_im_lbstresn', 'alp_im_lbstresu', 'tbil_im_lbstresn', 'tbil_im_lbstresu', 'dbil_im_lbstresn', 'dbil_im_lbstresu', 'alb_im_lbstresn', 'alb_im_lbstresu', 'creat_im_lbstresn', 'creat_im_lbstresu', 'gluc_im_lbstresn', 'gluc_im_lbstresu', 'k_im_lbstresn', 'k_im_lbstresu', 'sodium_im_lbstresn', 'sodium_im_lbstresu');
 $data = REDCap::getData('array', $subjid, $fields);
 foreach ($data AS $subject) {
 	foreach ($subject AS $event_id => $event) {
@@ -137,7 +136,7 @@ foreach ($data AS $subject) {
 		$url = APP_PATH_WEBROOT_FULL . "redcap_v" . $redcap_version . "/DataEntry/index.php?pid=$project_id&page=chemistry_imported&id=$subjid&event_id=$event_id";
 		foreach ($event AS $field => $item) {
 			$prefix = substr($field, 0, strpos($field, '_') + 1);
-			if ($item != '' && !in_array($field, array('chem_im_lbdtc', 'alt_im_lbstresu', 'ast_im_lbstresu', 'tbil_im_lbstresu', 'dbil_im_lbstresu', 'alb_im_lbstresu', 'creat_im_lbstresu', 'gluc_im_lbstresu', 'k_im_lbstresu', 'sodium_im_lbstresu'))) {
+			if ($item != '' && !in_array($field, array('chem_im_lbdtc', 'alt_im_lbstresu', 'ast_im_lbstresu', 'alp_im_lbstresu', 'tbil_im_lbstresu', 'dbil_im_lbstresu', 'alb_im_lbstresu', 'creat_im_lbstresu', 'gluc_im_lbstresu', 'k_im_lbstresu', 'sodium_im_lbstresu'))) {
 				$desc_array[] = get_field_label($field, $project_id) . ': <strong>' . $item . ' ' . $event[$prefix . 'im_lbstresu'] . "</strong>";
 			}
 		}

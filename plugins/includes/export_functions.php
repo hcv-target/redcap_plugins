@@ -1,6 +1,6 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 2/25/14
  * Time: 9:02 AM
@@ -629,7 +629,7 @@ function create_download_all($Proj, $lang, $project_id, $app_name, $app_title, $
 		// Get insert id
 		$stata_doc_id = db_insert_id();
 		// Store the file in the file system
-		if (!storeExportFile($export_stata_file_name, $stata_string, $stata_doc_id, $docs_size)) {
+		if (!DataExport::storeExportFile($export_stata_file_name, $stata_string, $stata_doc_id, $docs_size)) {
 			$is_export_error = true;
 		}
 	}
@@ -645,7 +645,7 @@ function create_download_all($Proj, $lang, $project_id, $app_name, $app_title, $
 		// Get insert id
 		$r_doc_id = db_insert_id();
 		// Store the file in the file system
-		if (!storeExportFile($export_R_file_name, $R_string, $r_doc_id, $docs_size)) {
+		if (!DataExport::storeExportFile($export_R_file_name, $R_string, $r_doc_id, $docs_size)) {
 			$is_export_error = true;
 		}
 	}
@@ -661,7 +661,7 @@ function create_download_all($Proj, $lang, $project_id, $app_name, $app_title, $
 		// Get insert id
 		$sas_doc_id = db_insert_id();
 		// Store the file in the file system
-		if (!storeExportFile($export_sas_file_name, $sas_read_string, $sas_doc_id, $docs_size)) {
+		if (!DataExport::storeExportFile($export_sas_file_name, $sas_read_string, $sas_doc_id, $docs_size)) {
 			$is_export_error = true;
 		}
 	}
@@ -677,7 +677,7 @@ function create_download_all($Proj, $lang, $project_id, $app_name, $app_title, $
 		// Get insert id
 		$data_wo_hdr_doc_id = db_insert_id();
 		// Store the file in the file system
-		if (!storeExportFile($data_file_name, $data_csv_temp, $data_wo_hdr_doc_id, $docs_size)) {
+		if (!DataExport::storeExportFile($data_file_name, $data_csv_temp, $data_wo_hdr_doc_id, $docs_size)) {
 			$is_export_error = true;
 		}
 	}
@@ -694,7 +694,7 @@ function create_download_all($Proj, $lang, $project_id, $app_name, $app_title, $
 		// Get insert id
 		$data_doc_id = db_insert_id();
 		// Store the file in the file system
-		if (!storeExportFile($data_file_name_WH, $data_csv, $data_doc_id, $docs_size)) {
+		if (!DataExport::storeExportFile($data_file_name_WH, $data_csv, $data_doc_id, $docs_size)) {
 			$is_export_error = true;
 		}
 	}
@@ -711,7 +711,7 @@ function create_download_all($Proj, $lang, $project_id, $app_name, $app_title, $
 		// Get insert id
 		$spss_doc_id = db_insert_id();
 		// Store the file in the file system
-		if (!storeExportFile($export_sps_file_name, $spss_string, $spss_doc_id, $docs_size)) {
+		if (!DataExport::storeExportFile($export_sps_file_name, $spss_string, $spss_doc_id, $docs_size)) {
 			$is_export_error = true;
 		}
 	}
@@ -727,7 +727,7 @@ function create_download_all($Proj, $lang, $project_id, $app_name, $app_title, $
 		// Get insert id
 		$data_labels_doc_id = db_insert_id();
 		// Store the file in the file system
-		if (!storeExportFile($data_file_name_labels, $data_csv_labels, $data_labels_doc_id, $docs_size)) {
+		if (!DataExport::storeExportFile($data_file_name_labels, $data_csv_labels, $data_labels_doc_id, $docs_size)) {
 			$is_export_error = true;
 		}
 	}

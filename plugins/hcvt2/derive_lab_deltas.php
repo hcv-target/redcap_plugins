@@ -1,15 +1,14 @@
 <?php
 /**
- * Created by NC TraCS for HCV-TARGET.
+ * Created by HCV-TARGET for HCV-TARGET.
  * User: kbergqui
  * Date: 10-26-2013
  */
 /**
  * TESTING
  */
-$getdebug = $_GET['debug'] ? $_GET['debug'] : false;
-$debug = $getdebug ? true : false;
-$subjects = $_GET['id'] ? $_GET['id'] : null;
+$debug = $_GET['debug'] ? (bool)$_GET['debug'] : false;
+$subjects = $_GET['id'] ? $_GET['id'] : '';
 $enable_kint = $debug && $subjects != '' ? true : false;
 /**
  * timing
@@ -46,7 +45,7 @@ echo "<h3>$plugin_title</h3>";
 if ($debug) {
 	$timer['main_start'] = microtime(true);
 }
-set_deltas($subjects, null, $debug);
+set_deltas($subjects, $debug);
 if ($debug) {
 	$timer['main_end'] = microtime(true);
 	$init_time = benchmark_timing($timer);

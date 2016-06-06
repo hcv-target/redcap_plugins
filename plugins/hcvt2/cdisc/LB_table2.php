@@ -1,12 +1,15 @@
 <?php
 /**
- * Created by NC TraCS.
+ * Created by HCV-TARGET.
  * User: kbergqui
  * Date: 12/18/13
  * Time: 9:20 AM
  */
-$debug = false;
-$subjects = ''; // '' = ALL
+$getdebug = $_GET['debug'] ? $_GET['debug'] : false;
+$debug = $getdebug ? true : false;
+$subjects = $_GET['id'] ? $_GET['id'] : '';
+$enable_kint = $debug && $subjects != '' ? true : false;
+
 $timer = array();
 $timer['start'] = microtime(true);
 /**
@@ -70,8 +73,8 @@ LEFT OUTER JOIN redcap_metadata test ON (test.field_name = CONCAT(LEFT(testcd.fi
 LEFT OUTER JOIN redcap_metadata orres ON ((orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborres') AND INSTR(orres.field_name, '_im_') = 0) OR (orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborres') AND INSTR(orres.field_name, '_im_') <> 0)) AND orres.project_id = testcd.project_id AND orres.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orresu ON ((orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborresu') AND INSTR(orres.field_name, '_im_') = 0) OR (orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND orresu.project_id = testcd.project_id AND orresu.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata stresn ON ((stresn.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresn') AND INSTR(orres.field_name, '_im_') = 0) OR (stresn.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresn') AND INSTR(orres.field_name, '_im_') <> 0)) AND stresn.project_id = testcd.project_id
-LEFT OUTER JOIN redcap_metadata stresu ON ((stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresu') AND INSTR(orres.field_name, '_im_') = 0) OR (stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresu')) AND INSTR(orres.field_name, '_im_') <> 0) AND stresu.project_id = testcd.project_id
-LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl'))) AND blfl.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata stresu ON ((stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresu') AND INSTR(orres.field_name, '_im_') = 0) OR (stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND stresu.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0)) AND blfl.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata dtc ON dtc.project_id = testcd.project_id AND dtc.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata trust ON ((trust.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_im')-1), '_im_nxtrust'))) AND trust.project_id = testcd.project_id
 WHERE testcd.field_name LIKE '%\_lbtestcd'
@@ -101,8 +104,8 @@ LEFT OUTER JOIN redcap_metadata test ON (test.field_name = CONCAT(LEFT(testcd.fi
 LEFT OUTER JOIN redcap_metadata orres ON ((orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborres') AND INSTR(orres.field_name, '_im_') = 0) OR (orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborres') AND INSTR(orres.field_name, '_im_') <> 0)) AND orres.project_id = testcd.project_id AND orres.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orresu ON ((orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborresu') AND INSTR(orres.field_name, '_im_') = 0) OR (orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND orresu.project_id = testcd.project_id AND orresu.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata stresn ON ((stresn.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresn') AND INSTR(orres.field_name, '_im_') = 0) OR (stresn.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresn') AND INSTR(orres.field_name, '_im_') <> 0)) AND stresn.project_id = testcd.project_id
-LEFT OUTER JOIN redcap_metadata stresu ON ((stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresu') AND INSTR(orres.field_name, '_im_') = 0) OR (stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresu')) AND INSTR(orres.field_name, '_im_') <> 0) AND stresu.project_id = testcd.project_id
-LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl'))) AND blfl.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata stresu ON ((stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresu') AND INSTR(orres.field_name, '_im_') = 0) OR (stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND stresu.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0)) AND blfl.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata dtc ON LEFT(dtc.field_name, INSTR(dtc.field_name, '_')-1) = LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1) AND dtc.project_id = testcd.project_id AND dtc.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata trust ON ((trust.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_im')-1), '_im_nxtrust'))) AND trust.project_id = testcd.project_id
 WHERE testcd.field_name LIKE '%\_lbtestcd'
@@ -132,13 +135,13 @@ FROM redcap_data testcd
 LEFT OUTER JOIN redcap_metadata testcd_meta
 ON testcd.field_name = testcd_meta.field_name AND testcd.project_id = testcd_meta.project_id
 WHERE testcd.project_id = '$project_id' AND testcd_meta.form_name IS NOT NULL AND testcd_meta.element_enum IS NOT NULL AND testcd.value IS NOT NULL AND testcd.value != ''
-) testcd
+) AS testcd
 LEFT OUTER JOIN redcap_metadata test ON ((test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbtest') AND INSTR(test.field_name, '_im_') = 0) OR (test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbtest') AND INSTR(test.field_name, '_im_') <> 0)) AND test.project_id = testcd.project_id AND test.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orres ON ((orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborres') AND INSTR(orres.field_name, '_im_') = 0) OR (orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborres') AND INSTR(orres.field_name, '_im_') <> 0)) AND orres.project_id = testcd.project_id AND orres.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orresu ON ((orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborresu') AND INSTR(orres.field_name, '_im_') = 0) OR (orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND orresu.project_id = testcd.project_id AND orresu.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata stresn ON ((stresn.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresn') AND INSTR(orres.field_name, '_im_') = 0) OR (stresn.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresn') AND INSTR(orres.field_name, '_im_') <> 0)) AND stresn.project_id = testcd.project_id
-LEFT OUTER JOIN redcap_metadata stresu ON ((stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresu') AND INSTR(orres.field_name, '_im_') = 0) OR (stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresu')) AND INSTR(orres.field_name, '_im_') <> 0) AND stresu.project_id = testcd.project_id
-LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl'))) AND blfl.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata stresu ON ((stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbstresu') AND INSTR(orres.field_name, '_im_') = 0) OR (stresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbstresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND stresu.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0)) AND blfl.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata dtc ON (dtc.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbdtc') OR dtc.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbdtc')) AND dtc.project_id = testcd.project_id AND dtc.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata trust ON ((trust.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_im')-1), '_im_nxtrust'))) AND trust.project_id = testcd.project_id
 WHERE testcd.field_name LIKE '%\_lbtest'";
@@ -153,7 +156,7 @@ orres.field_name AS lborres,
 NULL AS lborresu,
 orres.field_name AS lbstresn,
 NULL AS lbstresu,
-'creat_lbblfl' AS lbblfl,
+blfl.field_name AS lbblfl,
 NULL AS utype,
 NULL AS ulabel,
 dtc.field_name AS lbdtc,
@@ -161,7 +164,7 @@ trust.field_name AS trust
 FROM redcap_metadata testcd
 LEFT OUTER JOIN redcap_metadata test ON (test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbtest') OR test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbtest')) AND test.project_id = testcd.project_id AND test.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orres ON (orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborres') OR orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborres')) AND orres.project_id = testcd.project_id AND orres.form_name = testcd.form_name
-LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl')) AND INSTR(orres.field_name, '_im_') <> 0) AND blfl.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0)) AND blfl.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata dtc ON ((dtc.field_name = 'chem_lbdtc' AND INSTR(orres.field_name, '_im_') = 0) OR (dtc.field_name = 'chem_im_lbdtc' AND INSTR(orres.field_name, '_im_') <> 0)) AND dtc.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata trust ON ((trust.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_im')-1), '_im_nxtrust'))) AND trust.project_id = testcd.project_id
 WHERE (testcd.field_name = 'meld_lbtestcd' OR testcd.field_name = 'meld_im_lbtestcd')
@@ -177,7 +180,7 @@ orres.field_name AS lborres,
 NULL AS lborresu,
 orres.field_name AS lbstresn,
 NULL AS lbstresu,
-'creat_lbblfl' AS lbblfl,
+blfl.field_name AS lbblfl,
 orresu.element_type AS utype,
 orresu.element_label AS ulabel,
 dtc.field_name AS lbdtc,
@@ -186,7 +189,7 @@ FROM redcap_metadata testcd
 LEFT OUTER JOIN redcap_metadata test ON (test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbtest') OR test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbtest')) AND test.project_id = testcd.project_id AND test.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orres ON (orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborres') OR orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborres')) AND orres.project_id = testcd.project_id AND orres.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orresu ON ((orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborresu') AND INSTR(orres.field_name, '_im_') = 0) OR (orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND orresu.project_id = testcd.project_id AND orresu.form_name = testcd.form_name
-LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl')) AND INSTR(orres.field_name, '_im_') <> 0) AND blfl.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0)) AND blfl.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata dtc ON ((dtc.field_name = 'chem_lbdtc' AND INSTR(orres.field_name, '_im_') = 0) OR (dtc.field_name = 'chem_im_lbdtc' AND INSTR(orres.field_name, '_im_') <> 0)) AND dtc.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata trust ON ((trust.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_im')-1), '_im_nxtrust'))) AND trust.project_id = testcd.project_id
 WHERE (testcd.field_name = 'egfr_lbtestcd' OR testcd.field_name = 'egfr_im_lbtestcd')
@@ -202,7 +205,7 @@ orres.field_name AS lborres,
 NULL AS lborresu,
 orres.field_name AS lbstresn,
 NULL AS lbstresu,
-'plat_lbblfl' AS lbblfl,
+blfl.field_name AS lbblfl,
 orresu.element_type AS utype,
 orresu.element_label AS ulabel,
 dtc.field_name AS lbdtc,
@@ -211,7 +214,7 @@ FROM redcap_metadata testcd
 LEFT OUTER JOIN redcap_metadata test ON (test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbtest') OR test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbtest')) AND test.project_id = testcd.project_id AND test.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orres ON (orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborres') OR orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborres')) AND orres.project_id = testcd.project_id AND orres.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orresu ON ((orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborresu') AND INSTR(orres.field_name, '_im_') = 0) OR (orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND orresu.project_id = testcd.project_id AND orresu.form_name = testcd.form_name
-LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl')) AND INSTR(orres.field_name, '_im_') <> 0) AND blfl.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0)) AND blfl.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata dtc ON ((dtc.field_name = 'chem_lbdtc' AND INSTR(orres.field_name, '_im_') = 0) OR (dtc.field_name = 'chem_im_lbdtc' AND INSTR(orres.field_name, '_im_') <> 0)) AND dtc.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata trust ON ((trust.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_im')-1), '_im_nxtrust'))) AND trust.project_id = testcd.project_id
 WHERE (testcd.field_name = 'apri_lbtestcd' OR testcd.field_name = 'apri_im_lbtestcd')
@@ -236,7 +239,7 @@ FROM redcap_metadata testcd
 LEFT OUTER JOIN redcap_metadata test ON (test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbtest') OR test.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbtest')) AND test.project_id = testcd.project_id AND test.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orres ON (orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborres') OR orres.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborres')) AND orres.project_id = testcd.project_id AND orres.form_name = testcd.form_name
 LEFT OUTER JOIN redcap_metadata orresu ON ((orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lborresu') AND INSTR(orres.field_name, '_im_') = 0) OR (orresu.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lborresu') AND INSTR(orres.field_name, '_im_') <> 0)) AND orresu.project_id = testcd.project_id AND orresu.form_name = testcd.form_name
-LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = 'creat_lbblfl' AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = 'creat_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0) AND blfl.project_id = testcd.project_id
+LEFT OUTER JOIN redcap_metadata blfl ON ((blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_lbblfl') AND INSTR(orres.field_name, '_im_') = 0) OR (blfl.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_')-1), '_im_lbblfl') AND INSTR(orres.field_name, '_im_') <> 0)) AND blfl.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata dtc ON ((dtc.field_name = 'chem_lbdtc' AND INSTR(orres.field_name, '_im_') = 0) OR (dtc.field_name = 'chem_im_lbdtc' AND INSTR(orres.field_name, '_im_') <> 0)) AND dtc.project_id = testcd.project_id
 LEFT OUTER JOIN redcap_metadata trust ON ((trust.field_name = CONCAT(LEFT(testcd.field_name, INSTR(testcd.field_name, '_im')-1), '_im_nxtrust'))) AND trust.project_id = testcd.project_id
 WHERE (testcd.field_name = 'crcl_lbtestcd' OR testcd.field_name = 'crcl_im_lbtestcd')

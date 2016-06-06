@@ -1,7 +1,7 @@
 <?php
 //define("NOAUTH", true);
 /**
- * Created by NC TraCS for HCV-TARGET.
+ * Created by HCV-TARGET for HCV-TARGET.
  * User: kbergqui
  * Date: 10-26-2013
  */

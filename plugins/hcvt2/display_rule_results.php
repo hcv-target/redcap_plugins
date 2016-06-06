@@ -7,7 +7,6 @@ $timer['start'] = microtime(true);
 $base_path = dirname(dirname(dirname(__FILE__)));
 require_once $base_path . "/redcap_connect.php";
 require_once $base_path . '/plugins/includes/functions.php';
-require_once APP_PATH_DOCROOT . 'Config/init_project.php';
 require_once APP_PATH_DOCROOT . 'ProjectGeneral/header.php';
 require_once APP_PATH_DOCROOT . '/DataExport/functions.php';
 /**
