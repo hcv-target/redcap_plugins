@@ -1,11 +1,102 @@
 <?php
+
 /**
  * Created by HCV-TARGET.
  * User: kenbergquist
  * Date: 11/17/15
  * Time: 12:24 PM
  */
-class Prioritize {
+class Prioritize
+{
+	/**
+	 * @param $record
+	 * @param $instrument
+	 * @param $debug
+	 */
+	public static function set_dag($record, $instrument, $debug)
+	{
+		global $project_id;
+		/**
+		 * SET Data Access Group based upon dm_usubjid prefix
+		 */
+		$fields = array('dm_usubjid');
+		$data = REDCap::getData('array', $record, $fields);
+		foreach ($data AS $subject) {
+			foreach ($subject AS $event_id => $event) {
+				if ($event['dm_usubjid'] != '') {
+					/**
+					 * find which DAG this subject belongs to
+					 */
+					$site_prefix = substr($event['dm_usubjid'], 0, 3) . '%';
+					$dag_query = "SELECT group_id, group_name FROM redcap_data_access_groups WHERE project_id = '$project_id' AND group_name LIKE '$site_prefix'";
+					$dag_result = db_query($dag_query);
+					if ($dag_result) {
+						$dag = db_fetch_assoc($dag_result);
+						if (isset($dag['group_id'])) {
+							/**
+							 * For each event in project for this subject, determine if this subject_id has been added to its appropriate DAG. If it hasn't, make it so.
+							 * First, we need a list of events for which this subject has data
+							 */
+							$subject_events_query = "SELECT DISTINCT event_id FROM redcap_data WHERE project_id = '$project_id' AND record = '$record' AND field_name = '" . $instrument . "_complete'";
+							$subject_events_result = db_query($subject_events_query);
+							if ($subject_events_result) {
+								while ($subject_events_row = db_fetch_assoc($subject_events_result)) {
+									if (isset($subject_events_row['event_id'])) {
+										$_GET['event_id'] = $subject_events_row['event_id']; // for logging
+										/**
+										 * The subject has data in this event_id
+										 * does the subject have corresponding DAG assignment?
+										 */
+										$has_event_data_query = "SELECT DISTINCT event_id FROM redcap_data WHERE project_id = '$project_id' AND record = '$record' AND event_id = '" . $subject_events_row['event_id'] . "' AND field_name = '__GROUPID__'";
+										$has_event_data_result = db_query($has_event_data_query);
+										if ($has_event_data_result) {
+											$has_event_data = db_fetch_assoc($has_event_data_result);
+											if (!isset($has_event_data['event_id'])) {
+												/**
+												 * Subject does not have a matching DAG assignment for this data
+												 * construct proper matching __GROUPID__ record and insert
+												 */
+												$insert_dag_query = "INSERT INTO redcap_data SET record = '$record', event_id = '" . $subject_events_row['event_id'] . "', value = '" . $dag['group_id'] . "', project_id = '$project_id', field_name = '__GROUPID__'";
+												if (!$debug) {
+													if (db_query($insert_dag_query)) {
+														target_log_event($insert_dag_query, 'redcap_data', 'insert', $record, $dag['group_name'], 'Assign record to Data Access Group (' . $dag['group_name'] . ')');
+													} else {
+														error_log("SQL INSERT FAILED: " . db_error() . "\n");
+														echo db_error() . "\n";
+													}
+												} else {
+													show_var($insert_dag_query);
+													error_log('(TESTING) NOTICE: ' . $insert_dag_query);
+												}
+											}
+											db_free_result($has_event_data_result);
+										}
+									}
+								}
+								db_free_result($subject_events_result);
+							}
+						}
+						db_free_result($dag_result);
+					}
+				}
+			}
+		}
+	}
+	/**
+	 * @param $record
+	 * @return bool|null
+	 */
+	public static function getGroupID($record)
+	{
+		global $Proj, $project_id;
+		$first_event_id = $Proj->firstEventId;
+		$group_id = null;
+		$group_id_result = db_query("SELECT value FROM redcap_data WHERE project_id = '$project_id' AND record = '$record' AND event_id = '$first_event_id' AND field_name = '__GROUPID__' LIMIT 1");
+		if ($group_id_result) {
+			$group_id = db_result($group_id_result, 0, 'value');
+		}
+		return $group_id;
+	}
 	/**
 	 * @param $record
 	 * @param $event_id
@@ -53,7 +144,7 @@ class Prioritize {
 			$fields = array();
 			$arms = self::get_arms(array_keys($Proj->eventsForms));
 			$baseline_event_id = $Proj->firstEventId;
-			$trt = Subject::getTrtInfo($record);
+			$trt = Prioritize::getTrtInfo($record);
 			/**
 			 * use the selected duration ($trt['arm']) to set timings
 			 */
@@ -89,6 +180,9 @@ class Prioritize {
 				$fields[] = $survey_prefix . '_deadline';
 			}
 			$data = REDCap::getData('array', $record, $fields, $baseline_event_id);
+			if ($debug) {
+				error_log(print_r($data, true));
+			}
 			/**
 			 * switch to the scheduled arm to determine completion
 			 * this is done to avoid subjects switching arms and orphaning surveys completed
@@ -197,7 +291,7 @@ class Prioritize {
 		$sub = "SELECT DISTINCT e.arm_id from redcap_events_calendar c, redcap_events_metadata e WHERE c.project_id = $project_id AND c.record = '$record' AND c.event_id = e.event_id";
 		$sched_arm_result = db_query("SELECT arm_num FROM redcap_events_arms WHERE project_id = $project_id AND arm_id IN (" . pre_query($sub) . ")");
 		if ($sched_arm_result) {
-			$trt = Subject::getTrtInfo($record);
+			$trt = Prioritize::getTrtInfo($record);
 			if ($debug) {
 				error_log(print_r($trt, true));
 			}
@@ -491,6 +585,815 @@ class Prioritize {
 				}
 			}
 			unset($table_csv);
+		}
+	}
+
+	/**
+	 * @param $record
+	 * @param $redcap_event_name
+	 * @param $instrument
+	 * @param $type
+	 * @param $debug
+	 */
+	public static function set_notification($record, $redcap_event_name, $instrument, $debug)
+	{
+		global $Proj, $project_id;
+		$group_id = self::getGroupID($record);
+		$group_name_result = db_query("SELECT group_name FROM redcap_data_access_groups WHERE project_id = '$project_id' AND group_id = '$group_id'");
+		if ($group_name_result) {
+			$today = date('Y-m-d');
+			$group_name_row = db_fetch_assoc($group_name_result);
+			$group_name = $group_name_row['group_name'];
+			$site_id = substr($group_name_row['group_name'], 0, 3);
+			$first_event_id = $Proj->firstEventId;
+			switch ($instrument) {
+				case 'site_source_upload_form':
+					if ($debug) {
+						error_log("DEBUG: $instrument notification for $group_name");
+					} else {
+						if (!db_query("INSERT INTO target_email_actions SET project_id = '$project_id', record = '$record', redcap_event_name = '$redcap_event_name', redcap_data_access_group = '" . prep($group_name) . "', form_name = '$instrument', action_date = '$today'")) {
+							error_log(db_error());
+						}
+					}
+					break;
+				case 'source_upload_form':
+					if ($debug) {
+						error_log("DEBUG: $instrument notification for $group_name");
+					} else {
+						if ($site_id >= '300') {
+							if (!db_query("INSERT INTO target_email_actions SET project_id = '$project_id', record = '$record', redcap_event_name = '$redcap_event_name', redcap_data_access_group = '" . prep($group_name) . "', form_name = '$instrument', action_date = '$today'")) {
+								error_log(db_error());
+							}
+						}
+					}
+					break;
+				case 'treatment_start':
+					$started_tx = get_single_field($record, $project_id, $first_event_id, 'trt_suppex_txstat', null);
+					if ($started_tx == 'Y') {
+						if ($debug) {
+							error_log("DEBUG: Subject# $record for $group_name has started treatment");
+						} else {
+							if (!db_query("INSERT INTO target_email_actions SET project_id = '$project_id', record = '$record', redcap_event_name = '$redcap_event_name', redcap_data_access_group = '" . prep($group_name) . "', form_name = '$instrument', action_date = '$today'")) {
+								error_log(db_error());
+							}
+						}
+					} else {
+						error_log("DEBUG: Subject# $record for $group_name has not started treatment");
+					}
+					break;
+				default:
+					break;
+			}
+		}
+	}
+
+	/**
+	 * @param $record
+	 * @param $debug
+	 */
+	public static function set_tx_data($record, $debug)
+	{
+		global $Proj, $project_id, $tx_prefixes, $dm_array, $tx_array, $endt_fields, $regimen_fields;
+		$enable_kint = $debug && (isset($record) && $record != '') ? true : false;
+		Kint::enabled($enable_kint);
+		$baseline_event_id = $Proj->firstEventId;
+		$fields = array_merge($dm_array, $tx_array, $endt_fields, array('trt_suppex_txstat'));
+		$data = REDCap::getData('array', $record, $fields);
+		$regimen_data = REDCap::getData('array', $record, $regimen_fields);
+		foreach ($data AS $subject_id => $subject) {
+			$start_stack = array();
+			$tx_start_date = null;
+			$stop_date = null;
+			$age_at_start = null;
+			$end_values = array();
+			foreach ($subject AS $event_id => $event) {
+				/**
+				 * build dm_rfstdtc array
+				 */
+				foreach ($tx_array AS $tx_start) {
+					if ($event[$tx_start] != '') {
+						$start_stack[] = $event[$tx_start];
+					}
+				}
+				/**
+				 * build entdtc array
+				 */
+				foreach ($endt_fields AS $endt_field) {
+					if ($event[$endt_field] != '') {
+						$end_values[$event_id][$endt_field] = $event[$endt_field];
+					}
+				}
+			}
+			/**
+			 * SUBJECT LEVEL
+			 */
+			rsort($start_stack);
+			$tx_start_date = get_end_of_array($start_stack);
+			/**
+			 * dm_rfstdtc
+			 */
+			update_field_compare($subject_id, $project_id, $baseline_event_id, $tx_start_date, $subject[$baseline_event_id]['dm_rfstdtc'], 'dm_rfstdtc', $debug);
+			/**
+			 * age is dependent on the dm_rfxstdtc, not the derived treatment start date used elsewhere
+			 */
+			$dm_rfxstdtc = $subject[$baseline_event_id]['dm_rfxstdtc'];
+			if (isset($dm_rfxstdtc)) {
+				/**
+				 * Age at start of treatment
+				 * age_suppvs_age
+				 */
+				if ($subject[$baseline_event_id]['dm_brthyr'] != '') {
+					$birth_year = $subject[$baseline_event_id]['dm_brthyr'];
+				} elseif ($subject[$baseline_event_id]['dm_brthdtc'] != '') {
+					$birth_year = substr($subject[$baseline_event_id]['dm_brthdtc'], 0, 4);
+				} else {
+					$birth_year = '';
+				}
+				if (isset($birth_year) && $birth_year != '') {
+					$tx_start_year = substr($dm_rfxstdtc, 0, 4);
+					$age_at_start = ($tx_start_year - $birth_year) > 0 ? $tx_start_year - $birth_year : null;
+				}
+				update_field_compare($subject_id, $project_id, $baseline_event_id, $age_at_start, $subject[$baseline_event_id]['age_suppvs_age'], 'age_suppvs_age', $debug);
+			}
+			/**
+			 * dependent on derived TX start
+			 */
+			if (isset($tx_start_date)) {
+				/**
+				 * Date of last dose of HCV treatment or Treatment stop date
+				 * dis_suppfa_txendt
+				 */
+				$stack = array();
+				if (array_search_recursive('ONGOING', $end_values) === false) {
+					foreach ($tx_prefixes AS $endt_prefix) {
+						foreach ($end_values AS $event) {
+							if ($event[$endt_prefix . '_exendtc'] != '' && ($event[$endt_prefix . '_suppex_extrtout'] == 'COMPLETE') || $event[$endt_prefix . '_suppex_extrtout'] == 'PREMATURELY_DISCONTINUED') {
+								$stack[] = $event[$endt_prefix . '_exendtc'];
+								d('PREFIX ' . $endt_prefix, $event);
+							}
+						}
+					}
+				}
+				sort($start_stack);
+				sort($stack);
+				$last_date_in_start_stack = get_end_of_array($start_stack);
+				$last_date_in_stack = get_end_of_array($stack);
+				$stop_date = $last_date_in_stack < $last_date_in_start_stack ? null : $last_date_in_stack;
+				d($end_values);
+				d($start_stack);
+				d($stack);
+				d($last_date_in_start_stack);
+				d($last_date_in_stack);
+				d($stop_date);
+				update_field_compare($subject_id, $project_id, $baseline_event_id, $stop_date, $subject[$baseline_event_id]['dis_suppfa_txendt'], 'dis_suppfa_txendt', $debug);
+				/**
+				 * HCV Treatment duration
+				 */
+				if (isset($stop_date)) {
+					$tx_start_date_obj = new DateTime($tx_start_date);
+					$tx_stop_date_obj = new DateTime($stop_date);
+					$tx_duration = $tx_start_date_obj->diff($tx_stop_date_obj);
+					$dis_dsstdy = $tx_duration->format('%R%a') + 1;
+					update_field_compare($subject_id, $project_id, $baseline_event_id, $dis_dsstdy, $subject[$baseline_event_id]['dis_dsstdy'], 'dis_dsstdy', $debug);
+				}
+			}
+			/**
+			 * update treatment regimen
+			 */
+			$txstat = isset($tx_start_date) ? 'Y' : 'N';
+			$regimen = get_regimen($regimen_data[$subject_id], $subject[$baseline_event_id]['eot_dsterm'], $txstat);
+			update_field_compare($subject_id, $project_id, $baseline_event_id, $regimen['actarm'], $subject[$baseline_event_id]['dm_actarm'], 'dm_actarm', $debug);
+			update_field_compare($subject_id, $project_id, $baseline_event_id, $regimen['actarmcd'], $subject[$baseline_event_id]['dm_actarmcd'], 'dm_actarmcd', $debug);
+		}
+	}
+
+	/**
+	 * @param $record
+	 * @param $debug
+	 */
+	public static function set_treatment_exp($record, $debug)
+	{
+		global $Proj, $project_id;
+		$trt_exp_array = array('gen2_mhoccur', 'pegifn_mhoccur', 'triple_mhoccur', 'nopegifn_mhoccur', 'dm_suppdm_trtexp');
+		$enable_kint = $debug && (isset($record) && $record != '') ? true : false;
+		Kint::enabled($enable_kint);
+		$baseline_event_id = $Proj->firstEventId;
+		$data = REDCap::getData('array', $record, $trt_exp_array, $baseline_event_id);
+		if ($debug) {
+			error_log(print_r($data, TRUE));
+		}
+		foreach ($data AS $subject_id => $subject) {
+			/**
+			 * Are you experienced?
+			 */
+			$experienced = false;
+			foreach ($subject AS $event_id => $event) {
+				if ($event['simsof_mhoccur'] == 'Y' || $event['simsofrbv_mhoccur'] == 'Y' || $event['pegifn_mhoccur'] == 'Y' || $event['triple_mhoccur'] == 'Y' || $event['nopegifn_mhoccur'] == 'Y') {
+					$experienced = true;
+				}
+			}
+			$trt_exp = $experienced ? 'Y' : 'N';
+			update_field_compare($subject_id, $project_id, $baseline_event_id, $trt_exp, $subject[$baseline_event_id]['dm_suppdm_trtexp'], 'dm_suppdm_trtexp', $debug);
+		}
+	}
+
+	/**
+	 * @param $record
+	 * @param $redcap_event_name
+	 * @param $instrument
+	 * @param $debug
+	 */
+	public static function code_terms($record, $redcap_event_name, $instrument, $debug)
+	{
+		global $Proj, $project_id, $tx_fragment_labels;
+		$this_event_id = $Proj->getEventIdUsingUniqueEventName($redcap_event_name);
+		switch ($instrument) {
+			case 'ae_coding':
+				$recode_llt = false;
+				$recode_pt = true;
+				$recode_soc = true;
+				$prefix = 'ae';
+				/**
+				 * AE_AEMODIFY
+				 */
+				$fields = array("ae_aeterm", "ae_oth_aeterm", "ae_aemodify");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id]['ae_aeterm']), fix_case($data[$record][$this_event_id]['ae_oth_aeterm']), $data[$record][$this_event_id]['ae_aemodify'], 'ae_aemodify', $debug, $recode_llt);
+				if ($debug) {
+					error_log("DEBUG: Coded AE_AEMODIFY {$data[$record][$this_event_id]['ae_aemodify']}: subject=$record, event=$this_event_id for AE {$data[$record][$this_event_id]['ae_aeterm']} - {$data[$record][$this_event_id]['ae_oth_aeterm']}");
+				}
+				/**
+				 * PREFIX_AEDECOD
+				 * uses $tx_prefixes preset array
+				 */
+				$fields = array($prefix . "_aemodify", $prefix . "_aedecod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_pt($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_aemodify"], $data[$record][$this_event_id][$prefix . "_aedecod"], $prefix . "_aedecod", $debug, $recode_pt);
+				if ($debug) {
+					error_log("DEBUG: Coded " . strtoupper($prefix) . "_AEDECOD {$data[$record][$this_event_id][$prefix . '_aedecod']}: subject=$record, event=$this_event_id for AEMODIFY {$data[$record][$this_event_id][$prefix . '_aemodify']}");
+				}
+				/**
+				 * PREFIX_AEBODSYS
+				 * uses $tx_prefixes preset array
+				 */
+				$fields = array($prefix . "_aedecod", $prefix . "_aebodsys");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_aedecod"], $data[$record][$this_event_id][$prefix . "_aebodsys"], $prefix . "_aebodsys", $debug, $recode_soc);
+				if ($debug) {
+					error_log("DEBUG: Coded SOC: subject=$record, event=$this_event_id for AE {$data[$record][$this_event_id][$prefix . "_aedecod"]}");
+				}
+				unset($data);
+				break;
+			/**
+			 * ADVERSE EVENTS
+			 * ACTION: auto-code AE
+			 */
+			case 'adverse_events':
+				$recode_llt = true;
+				$recode_pt = true;
+				$recode_soc = true;
+				/**
+				 * AE_AEDECOD
+				 */
+				$fields = array("ae_aeterm", "ae_oth_aeterm", "ae_aemodify");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id]['ae_aeterm']), fix_case($data[$record][$this_event_id]['ae_oth_aeterm']), $data[$record][$this_event_id]['ae_aemodify'], 'ae_aemodify', $debug, $recode_llt);
+				if ($debug) {
+					error_log("DEBUG: Coded AE_AEMODIFY {$data[$record][$this_event_id]['ae_aemodify']}: subject=$record, event=$this_event_id for AE {$data[$record][$this_event_id]['ae_aeterm']} - {$data[$record][$this_event_id]['ae_oth_aeterm']}");
+				}
+				/**
+				 * AE_AEDECOD
+				 */
+				$fields = array("ae_aemodify", "ae_aedecod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_pt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id]['ae_aemodify']), $data[$record][$this_event_id]['ae_aedecod'], 'ae_aedecod', $debug, $recode_pt);
+				if ($debug) {
+					error_log("DEBUG: Coded AE_AEDECOD {$data[$record][$this_event_id]['ae_aedecod']}: subject=$record, event=$this_event_id for AE {$data[$record][$this_event_id]['ae_aemodify']}");
+				}
+				/**
+				 * AE_AEBODSYS
+				 */
+				$fields = array("ae_aedecod", "ae_aebodsys");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id]['ae_aedecod'], $data[$record][$this_event_id]['ae_aebodsys'], 'ae_aebodsys', $debug, $recode_soc);
+				if ($debug) {
+					error_log("DEBUG: Coded SOC: subject=$record, event=$this_event_id for AE {$data[$record][$this_event_id]['ae_aedecod']}");
+				}
+				unset($data);
+				break;
+			/**
+			 * MEDICAL HISTORY
+			 * ACTION: auto-code MH
+			 */
+			case 'key_medical_history':
+				$recode_llt = false;
+				$recode_pt = true;
+				$recode_soc = true;
+				$mh_prefixes = array('othpsy', 'othca');
+				/**
+				 * MH_MHMODIFY
+				 */
+				foreach ($mh_prefixes AS $prefix) {
+					$fields = array($prefix . "_oth_mhterm", $prefix . "_mhmodify");
+					$data = REDCap::getData('array', $record, $fields, $this_event_id);
+					code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id][$prefix . "_oth_mhterm"]), '', $data[$record][$this_event_id][$prefix . "_mhmodify"], $prefix . "_mhmodify", $debug, $recode_llt);
+					if ($debug) {
+						error_log("DEBUG: Coded " . strtoupper($prefix) . "_MHMODIFY {$data[$record][$this_event_id][$prefix . "_mhmodify"]}: subject=$record, event=$this_event_id for MH {$data[$record][$this_event_id][$prefix . "_oth_mhterm"]}");
+					}
+					/**
+					 * PREFIX_MHDECOD
+					 * uses $mh_prefixes preset array
+					 */
+					$fields = array($prefix . "_mhmodify", $prefix . "_mhdecod");
+					$data = REDCap::getData('array', $record, $fields, $this_event_id);
+					code_pt($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_mhmodify"], $data[$record][$this_event_id][$prefix . "_mhdecod"], $prefix . "_mhdecod", $debug, $recode_pt);
+					if ($debug) {
+						error_log("DEBUG: Coded " . strtoupper($prefix) . "_MHDECOD {$data[$record][$this_event_id][$prefix . '_mhdecod']}: subject=$record, event=$this_event_id for MHMODIFY {$data[$record][$this_event_id][$prefix . '_mhmodify']}");
+					}
+					/**
+					 * PREFIX_mhBODSYS
+					 * uses $mh_prefixes preset array
+					 */
+					$fields = array($prefix . "_mhdecod", $prefix . "_mhbodsys");
+					$data = REDCap::getData('array', $record, $fields, $this_event_id);
+					code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_mhdecod"], $data[$record][$this_event_id][$prefix . "_mhbodsys"], $prefix . "_mhbodsys", $debug, $recode_soc);
+					if ($debug) {
+						error_log("DEBUG: Coded " . strtoupper($prefix) . "_MHBODSYS {$data[$record][$this_event_id][$prefix . "_mhbodsys"]}: subject=$record, event=$this_event_id for MHDECOD {$data[$record][$this_event_id][$prefix . "_mhdecod"]}");
+					}
+				}
+				unset($data);
+				break;
+			/**
+			 * EOT
+			 */
+			case 'early_discontinuation_eot':
+				$recode_llt = true;
+				$recode_pt = true;
+				$recode_soc = true;
+				/**
+				 * EOT_AEDECOD
+				 */
+				$data = REDCap::getData('array', $record, array("eot_suppds_ncmpae", "eot_oth_suppds_ncmpae", "eot_aemodify", "eot_dsterm"), $this_event_id);
+				$ptdata = REDCap::getData('array', $record, array("eot_aemodify", "eot_aedecod"), $this_event_id);
+				$soc_data = REDCap::getData('array', $record, array("eot_aedecod", "eot_aebodsys"), $this_event_id);
+				foreach ($data[$record][$this_event_id] AS $event) {
+					if ($event['eot_dsterm'] == 'ADVERSE_EVENT') {
+						code_llt($project_id, $record, $this_event_id, fix_case($event['eot_suppds_ncmpae']), fix_case($event['eot_oth_suppds_ncmpae']), $event['eot_aemodify'], 'eot_aemodify', $debug, $recode_llt);
+						if ($debug) {
+							error_log("INFO (TESTING EOT): Coded EOT_AEMODIFY {$event['eot_aemodify']}: subject=$record, event=$this_event_id for AE {$event['eot_suppds_ncmpae']} - {$event['eot_oth_suppds_ncmpae']}");
+						}
+						/**
+						 * AE_AEDECOD
+						 */
+						foreach ($ptdata[$record][$this_event_id] AS $ptevent) {
+							code_pt($project_id, $record, $this_event_id, fix_case($ptevent['eot_aemodify']), $ptevent['eot_aedecod'], 'eot_aedecod', $debug, $recode_pt);
+							if ($debug) {
+								error_log("DEBUG: Coded EOT_AEDECOD {$ptevent['eot_aedecod']}: subject=$record, event=$this_event_id for AEMODIFY {$ptevent['eot_aemodify']}");
+							}
+						}
+						/**
+						 * EOT_AEBODSYS
+						 */
+						foreach ($soc_data[$record][$this_event_id] AS $soc_event) {
+							code_bodsys($project_id, $record, $this_event_id, $soc_event['eot_aedecod'], $soc_event['eot_aebodsys'], 'eot_aebodsys', $debug, $recode_soc);
+							if ($debug) {
+								error_log("DEBUG: Coded SOC: subject=$record, event=$this_event_id for AE {$soc_event['eot_aedecod']}");
+							}
+						}
+					}
+				}
+				unset($data);
+				unset($ptdata);
+				unset($soc_data);
+				break;
+			/**
+			 * TX stop AEs
+			 */
+			case 'ribavirin_administration':
+			case 'harvoni_administration':
+			case 'ombitasvir_paritaprevir':
+			case 'dasabuvir':
+			case 'zepatier_administration':
+				$recode_llt = true;
+				$recode_pt = true;
+				$recode_soc = true;
+				$tx_prefix = array_search(substr($instrument, 0, strpos($instrument, '_')), $tx_fragment_labels);
+				/**
+				 * AE_AEMODIFY
+				 */
+				$fields = array($tx_prefix . '_suppcm_cmncmpae', $tx_prefix . '_oth_suppcm_cmncmpae', $tx_prefix . '_aemodify');
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				foreach ($data[$record][$this_event_id] AS $event) {
+					code_llt($project_id, $record, $this_event_id, fix_case($event[$tx_prefix . '_suppcm_cmncmpae']), fix_case($event[$tx_prefix . '_oth_suppcm_cmncmpae']), $event[$tx_prefix . '_aemodify'], $tx_prefix . '_aemodify', $debug, $recode_llt);
+					if ($debug) {
+						error_log("DEBUG: Coded AE_AEMODIFY {$event[$tx_prefix . '_aemodify']}: subject=$record, event=$this_event_id for AE {$event[$tx_prefix . '_suppcm_cmncmpae']} - {$event[$tx_prefix . '_oth_suppcm_cmncmpae']}");
+					}
+				}
+				/**
+				 * AE_AEDECOD
+				 */
+				$fields = array($tx_prefix . '_aemodify', $tx_prefix . "_aedecod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				foreach ($data[$record][$this_event_id] AS $event) {
+					code_pt($project_id, $record, $this_event_id, fix_case($event[$tx_prefix . '_aemodify']), $event[$tx_prefix . '_aedecod'], $tx_prefix . '_aedecod', $debug, $recode_pt);
+					if ($debug) {
+						error_log("DEBUG: Coded AE_AEDECOD {$event[$tx_prefix . '_aedecod']}: subject=$record, event=$this_event_id for AE {$event[$tx_prefix . '_aemodify']}");
+					}
+				}
+				/**
+				 * AE_AEBODSYS
+				 */
+				$fields = array($tx_prefix . '_aedecod', $tx_prefix . '_aebodsys');
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				foreach ($data[$record][$this_event_id] AS $event) {
+					code_bodsys($project_id, $record, $this_event_id, $event[$tx_prefix . '_aedecod'], $event[$tx_prefix . '_aebodsys'], $tx_prefix . '_aebodsys', $debug, $recode_soc);
+					if ($debug) {
+						error_log("DEBUG: Coded SOC: subject=$record, event=$this_event_id for AE {$event[$tx_prefix . '_aedecod']}");
+					}
+				}
+				unset($data);
+				break;
+			/**
+			 * CONMEDS
+			 * ACTION: auto-code CONMEDS
+			 */
+			case 'conmeds':
+				/**
+				 * CM_CMDECOD
+				 */
+				$recode_cm = true;
+				$recode_llt = true;
+				$recode_pt = true;
+				$recode_soc = true;
+				$recode_atc = true;
+				$fields = array("cm_cmtrt", "cm_cmdecod", "cm_cmindc", "cm_oth_cmindc", "cm_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_cm($project_id, $record, $this_event_id, $data[$record][$this_event_id], $debug, $recode_cm);
+				/**
+				 * cm_suppcm_mktstat
+				 * PRESCRIPTION or OTC
+				 */
+				$fields = array("cm_cmdecod", "cm_suppcm_mktstat");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				foreach ($data as $subject_id => $subject) {
+					foreach ($subject as $event_id => $event) {
+						if (isset($event['cm_cmdecod']) && $event['cm_cmdecod'] != '') {
+							update_field_compare($subject_id, $project_id, $event_id, get_conmed_mktg_status($event['cm_cmdecod']), $event['cm_suppcm_mktstat'], 'cm_suppcm_mktstat', $debug);
+							if ($debug) {
+								error_log("DEBUG: $subject_id Marketing Status = " . get_conmed_mktg_status($event['cm_cmdecod']));
+							}
+						}
+					}
+				}
+				/**
+				 * CM_SUPPCM_INDCOD
+				 */
+				$fields = array("cm_cmindc", "cm_oth_cmindc", "cm_suppcm_indcmodf");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				/**
+				 * re-code all nutritional support to nutritional supplement
+				 */
+				if ($data[$record][$this_event_id]['cm_oth_cmindc'] == 'Nutritional support') {
+					$data[$record][$this_event_id]['cm_oth_cmindc'] = 'Nutritional supplement';
+				}
+				code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id]['cm_cmindc']), fix_case($data[$record][$this_event_id]['cm_oth_cmindc']), $data[$record][$this_event_id]['cm_suppcm_indcmodf'], 'cm_suppcm_indcmodf', $debug, $recode_llt);
+				if ($debug) {
+					error_log("DEBUG: Coded INDC LLT: {} subject=$record, event=$this_event_id for INDICATION {$data[$record][$this_event_id]['cm_cmindc']}");
+				}
+				/**
+				 * CM_SUPPCM_INDCOD
+				 */
+				$fields = array("cm_suppcm_indcmodf", "cm_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_pt($project_id, $record, $this_event_id, $data[$record][$this_event_id]['cm_suppcm_indcmodf'], $data[$record][$this_event_id]['cm_suppcm_indcod'], 'cm_suppcm_indcod', $debug, $recode_pt);
+				if ($debug) {
+					error_log("DEBUG: Coded INDC PT: subject=$record, event=$this_event_id for INDICATION {$data[$record][$this_event_id]['cm_suppcm_indcod']}");
+				}
+				/**
+				 * CM_SUPPCM_INDCSYS
+				 */
+				$fields = array("cm_suppcm_indcod", "cm_suppcm_indcsys");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id]['cm_suppcm_indcod'], $data[$record][$this_event_id]['cm_suppcm_indcsys'], 'cm_suppcm_indcsys', $debug, $recode_soc);
+				if ($debug) {
+					error_log("DEBUG: Coded INDCSYS: subject=$record, event=$this_event_id for INDC {$data[$record][$this_event_id]['cm_suppcm_indcod']}");
+				}
+				/**
+				 * CM_SUPPCM_ATCNAME
+				 * CM_SUPPCM_ATC2NAME
+				 */
+				$fields = array("cm_cmdecod", "cm_suppcm_atcname", "cm_suppcm_atc2name");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_atc($project_id, $record, $this_event_id, $data[$record][$this_event_id]['cm_cmdecod'], $data[$record][$this_event_id]['cm_suppcm_atcname'], $data[$record][$this_event_id]['cm_suppcm_atc2name'], $debug, $recode_atc);
+				if ($debug) {
+					error_log("DEBUG: Coded ATCs: subject=$record, event=$this_event_id for CONMED {$data[$record][$this_event_id]['cm_cmdecod']}");
+				}
+				break;
+
+			case 'transfusions':
+				$recode_cm = true;
+				$recode_llt = true;
+				$recode_soc = true;
+				$recode_atc = true;
+				/**
+				 * XFSN_CMDECOD
+				 */
+				$fields = array("xfsn_cmtrt", "xfsn_cmdecod", "xfsn_cmindc", "xfsn_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_cm($project_id, $record, $this_event_id, $data[$record][$this_event_id], $debug, $recode_cm);
+				/**
+				 * XFSN_SUPPCM_INDCOD
+				 */
+				$fields = array("xfsn_cmindc", "xfsn_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id]['xfsn_cmindc']), fix_case($data[$record][$this_event_id]['xfsn_oth_cmindc']), $data[$record][$this_event_id]['xfsn_suppcm_indcod'], 'xfsn_suppcm_indcod', $debug, $recode_llt);
+				if ($debug) {
+					error_log("DEBUG: Coded XFSN INDC: subject=$record, event=$this_event_id for CONMED {$data[$record][$this_event_id]['xfsn_cmdecod']}");
+				}
+				/**
+				 * XFSN_SUPPCM_INDCSYS
+				 */
+				$fields = array("xfsn_suppcm_indcod", "xfsn_suppcm_indcsys");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id]['xfsn_suppcm_indcod'], $data[$record][$this_event_id]['xfsn_suppcm_indcsys'], 'xfsn_suppcm_indcsys', $debug, $recode_soc);
+				if ($debug) {
+					error_log("DEBUG: Coded XFSN INDCSYS: subject=$record, event=$this_event_id for INDC {$data[$record][$this_event_id]['xfsn_suppcm_indcod']}");
+				}
+				/**
+				 * XFSN_SUPPCM_ATCNAME
+				 * XFSN_SUPPCM_ATC2NAME
+				 */
+				$fields = array("xfsn_cmdecod", "xfsn_suppcm_atcname", "xfsn_suppcm_atc2name");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_atc_xfsn($project_id, $record, $this_event_id, $data[$record][$this_event_id]['xfsn_cmdecod'], $data[$record][$this_event_id]['xfsn_suppcm_atcname'], $data[$record][$this_event_id]['xfsn_suppcm_atc2name'], $debug, $recode_atc);
+				if ($debug) {
+					error_log("DEBUG: Coded XFSN ATCs: subject=$record, event=$this_event_id for CONMED {$data[$record][$this_event_id]['xfsn_cmdecod']}");
+				}
+				unset($data);
+				break;
+
+			case 'mh_coding':
+				$recode_llt = false;
+				$recode_pt = true;
+				$recode_soc = true;
+				$mh_prefixes = array('othpsy', 'othca');
+				/**
+				 * MH_MHMODIFY
+				 */
+				foreach ($mh_prefixes AS $prefix) {
+					$fields = array($prefix . "_oth_mhterm", $prefix . "_mhmodify");
+					$data = REDCap::getData('array', $record, $fields, $this_event_id);
+					code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id][$prefix . "_oth_mhterm"]), '', $data[$record][$this_event_id][$prefix . "_mhmodify"], $prefix . "_mhmodify", $debug, $recode_llt);
+					if ($debug) {
+						error_log("DEBUG: Coded " . strtoupper($prefix) . "_MHMODIFY {$data[$record][$this_event_id][$prefix . "_mhmodify"]}: subject=$record, event=$this_event_id for MH {$data[$record][$this_event_id][$prefix . "_oth_mhterm"]}");
+					}
+					/**
+					 * PREFIX_MHDECOD
+					 * uses $mh_prefixes preset array
+					 */
+					$fields = array($prefix . "_mhmodify", $prefix . "_mhdecod");
+					$data = REDCap::getData('array', $record, $fields, $this_event_id);
+					code_pt($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_mhmodify"], $data[$record][$this_event_id][$prefix . "_mhdecod"], $prefix . "_mhdecod", $debug, $recode_pt);
+					if ($debug) {
+						error_log("DEBUG: Coded " . strtoupper($prefix) . "_MHDECOD {$data[$record][$this_event_id][$prefix . '_mhdecod']}: subject=$record, event=$this_event_id for MHMODIFY {$data[$record][$this_event_id][$prefix . '_mhmodify']}");
+					}
+					/**
+					 * PREFIX_mhBODSYS
+					 * uses $mh_prefixes preset array
+					 */
+					$fields = array($prefix . "_mhdecod", $prefix . "_mhbodsys");
+					$data = REDCap::getData('array', $record, $fields, $this_event_id);
+					code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_mhdecod"], $data[$record][$this_event_id][$prefix . "_mhbodsys"], $prefix . "_mhbodsys", $debug, $recode_soc);
+					if ($debug) {
+						error_log("DEBUG: Coded  " . strtoupper($prefix) . "_MHBODSYS {$data[$record][$this_event_id][$prefix . "_mhbodsys"]}: subject=$record, event=$this_event_id for MHDECOD {$data[$record][$this_event_id][$prefix . "_mhdecod"]}");
+					}
+				}
+				unset($data);
+				break;
+
+			case 'cm_coding':
+				$recode_llt = false;
+				$recode_pt = true;
+				$recode_soc = true;
+				$recode_atc = false;
+				$recode_cm = true;
+				/**
+				 * CM_CMDECOD
+				 */
+				$fields = array("cm_cmtrt", "cm_cmdecod", "cm_cmindc", "cm_oth_cmindc", "cm_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_cm($project_id, $record, $this_event_id, $data[$record][$this_event_id], $debug, $recode_cm);
+				if ($debug) {
+					error_log("DEBUG: Coded CONMED: subject=$record, event=$this_event_id for CMTRT {$data[$record][$this_event_id]['cm_cmtrt']}");
+				}
+				/**
+				 * cm_suppcm_mktstat
+				 * PRESCRIPTION or OTC
+				 */
+				$fields = array("cm_cmdecod", "cm_suppcm_mktstat");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				foreach ($data as $subject_id => $subject) {
+					foreach ($subject as $event_id => $event) {
+						if (isset($event['cm_cmdecod']) && $event['cm_cmdecod'] != '') {
+							update_field_compare($subject_id, $project_id, $event_id, get_conmed_mktg_status($event['cm_cmdecod']), $event['cm_suppcm_mktstat'], 'cm_suppcm_mktstat', $debug);
+							if ($debug) {
+								error_log("DEBUG: $subject_id Marketing Status = " . get_conmed_mktg_status($event['cm_cmdecod']));
+							}
+						}
+					}
+				}
+				/**
+				 * CM_SUPPCM_INDCOD
+				 */
+				$fields = array("cm_cmindc", "cm_oth_cmindc", "cm_suppcm_indcmodf");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				/**
+				 * re-code all nutritional support to nutritional supplement
+				 */
+				if ($data[$record][$this_event_id]['cm_oth_cmindc'] == 'Nutritional support') {
+					$data[$record][$this_event_id]['cm_oth_cmindc'] = 'Nutritional supplement';
+				}
+				code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id]['cm_cmindc']), fix_case($data[$record][$this_event_id]['cm_oth_cmindc']), $data[$record][$this_event_id]['cm_suppcm_indcmodf'], 'cm_suppcm_indcmodf', $debug, $recode_llt);
+				if ($debug) {
+					error_log("DEBUG: Coded INDC LLT: {} subject=$record, event=$this_event_id for INDICATION {$data[$record][$this_event_id]['cm_cmindc']}");
+				}
+				/**
+				 * CM_SUPPCM_INDCOD
+				 */
+				$fields = array("cm_suppcm_indcmodf", "cm_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_pt($project_id, $record, $this_event_id, $data[$record][$this_event_id]['cm_suppcm_indcmodf'], $data[$record][$this_event_id]['cm_suppcm_indcod'], 'cm_suppcm_indcod', $debug, $recode_pt);
+				if ($debug) {
+					error_log("DEBUG: Coded INDC PT: subject=$record, event=$this_event_id for INDICATION {$data[$record][$this_event_id]['cm_suppcm_indcod']}");
+				}
+				/**
+				 * CM_SUPPCM_INDCSYS
+				 */
+				$fields = array("cm_suppcm_indcod", "cm_suppcm_indcsys");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id]['cm_suppcm_indcod'], $data[$record][$this_event_id]['cm_suppcm_indcsys'], 'cm_suppcm_indcsys', $debug, $recode_soc);
+				if ($debug) {
+					error_log("DEBUG: Coded INDCSYS: subject=$record, event=$this_event_id for INDC {$data[$record][$this_event_id]['cm_suppcm_indcod']}");
+				}
+				/**
+				 * CM_SUPPCM_ATCNAME
+				 * CM_SUPPCM_ATC2NAME
+				 */
+				$fields = array("cm_cmdecod", "cm_suppcm_atcname", "cm_suppcm_atc2name");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_atc_soc($project_id, $record, $this_event_id, $data[$record][$this_event_id]['cm_cmdecod'], $data[$record][$this_event_id]['cm_suppcm_atcname'], $data[$record][$this_event_id]['cm_suppcm_atc2name'], $debug, $recode_atc);
+				if ($debug) {
+					error_log("DEBUG: Coded ATCs: subject=$record, event=$this_event_id for CONMED {$data[$record][$this_event_id]['cm_cmdecod']}");
+				}
+				/**
+				 * XFSN_CMDECOD
+				 */
+				$fields = array("xfsn_cmtrt", "xfsn_cmdecod", "xfsn_cmindc", "xfsn_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				foreach ($data AS $subject_id => $subject) {
+					foreach ($subject AS $event_id => $event) {
+						if (isset($event['xfsn_cmtrt']) && $event['xfsn_cmtrt'] != '') {
+							$med = array();
+							$med_result = db_query("SELECT DISTINCT drug_coded FROM _target_xfsn_coding WHERE drug_name = '" . prep($event['xfsn_cmtrt']) . "'");
+							if ($med_result) {
+								$med = db_fetch_assoc($med_result);
+								if (isset($med['drug_coded']) && $med['drug_coded'] != '') {
+									update_field_compare($subject_id, $project_id, $event_id, $med['drug_coded'], $event['xfsn_cmdecod'], 'xfsn_cmdecod', $debug);
+								}
+							}
+							if ($debug) {
+								error_log("DEBUG: Coded Transfusion: subject=$subject_id, event=$event_id for CMTRT {$event['xfsn_cmtrt']}");
+							}
+						} else {
+							update_field_compare($subject_id, $project_id, $event_id, '', $event['xfsn_cmdecod'], 'xfsn_cmdecod', $debug);
+						}
+					}
+				}
+				/**
+				 * XFSN_SUPPCM_INDCOD
+				 */
+				$fields = array("xfsn_cmindc", "xfsn_suppcm_indcod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_llt($project_id, $record, $this_event_id, fix_case($data[$record][$this_event_id]['xfsn_cmindc']), fix_case($data[$record][$this_event_id]['xfsn_oth_cmindc']), $data[$record][$this_event_id]['xfsn_suppcm_indcod'], 'xfsn_suppcm_indcod', $debug, $recode_llt);
+				if ($debug) {
+					error_log("DEBUG: Coded XFSN INDC: subject=$record, event=$this_event_id for CONMED {$data[$record][$this_event_id]['xfsn_cmdecod']}");
+				}
+				/**
+				 * XFSN_SUPPCM_INDCSYS
+				 */
+				$fields = array("xfsn_suppcm_indcod", "xfsn_suppcm_indcsys");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id]['xfsn_suppcm_indcod'], $data[$record][$this_event_id]['xfsn_suppcm_indcsys'], 'xfsn_suppcm_indcsys', $debug, $recode_soc);
+				if ($debug) {
+					error_log("DEBUG: Coded XFSN INDCSYS: subject=$record, event=$this_event_id for INDC {$data[$record][$this_event_id]['xfsn_suppcm_indcod']}");
+				}
+				/**
+				 * XFSN_SUPPCM_ATCNAME
+				 * XFSN_SUPPCM_ATC2NAME
+				 */
+				$fields = array("xfsn_cmdecod", "xfsn_suppcm_atcname", "xfsn_suppcm_atc2name");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_atc_xfsn($project_id, $record, $this_event_id, $data[$record][$this_event_id]['xfsn_cmdecod'], $data[$record][$this_event_id]['xfsn_suppcm_atcname'], $data[$record][$this_event_id]['xfsn_suppcm_atc2name'], $debug, $recode_atc);
+				if ($debug) {
+					error_log("DEBUG: Coded XFSN ATCs: subject=$record, event=$this_event_id for CONMED {$data[$record][$this_event_id]['xfsn_cmdecod']}");
+				}
+				unset($data);
+				break;
+
+			case 'ex_coding':
+				$recode_pt = true;
+				$recode_soc = true;
+				$prefix = 'eot';
+				/**
+				 * PREFIX_AEDECOD
+				 * uses $tx_prefixes preset array
+				 */
+				$fields = array($prefix . "_aemodify", $prefix . "_aedecod");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_pt($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_aemodify"], $data[$record][$this_event_id][$prefix . "_aedecod"], $prefix . "_aedecod", $debug, $recode_pt);
+				if ($debug) {
+					error_log("DEBUG: Coded " . strtoupper($prefix) . "_AEDECOD {$data[$record][$this_event_id][$prefix . '_aedecod']}: subject=$record, event=$this_event_id for AEMODIFY {$data[$record][$this_event_id][$prefix . '_aemodify']}");
+				}
+				/**
+				 * PREFIX_AEBODSYS
+				 * uses $tx_prefixes preset array
+				 */
+				$fields = array($prefix . "_aedecod", $prefix . "_aebodsys");
+				$data = REDCap::getData('array', $record, $fields, $this_event_id);
+				code_bodsys($project_id, $record, $this_event_id, $data[$record][$this_event_id][$prefix . "_aedecod"], $data[$record][$this_event_id][$prefix . "_aebodsys"], $prefix . "_aebodsys", $debug, $recode_soc);
+				if ($debug) {
+					error_log("DEBUG: Coded SOC: subject=$record, event=$this_event_id for AE {$data[$record][$this_event_id][$prefix . "_aedecod"]}");
+				}
+				unset($data);
+				break;
+			default:
+				break;
+		}
+	}
+
+	/**
+	 * @param $record
+	 * @return array
+	 */
+	public static function getTrtInfo($record)
+	{
+		global $Proj, $project_id;
+		$trtinfo = array();
+		$baseline_event_id = $Proj->firstEventId;
+		$randomization_date = get_single_field($record, $project_id, $baseline_event_id, 'rand_suppex_rndstdtc', null);
+		if ($randomization_date != '') {
+			$trtinfo['rand_date'] = $randomization_date;
+			$trtinfo['rfxstdtc'] = get_single_field($record, $project_id, $baseline_event_id, 'dm_rfxstdtc', null);
+			$trtinfo['rfstdtc'] = get_single_field($record, $project_id, $baseline_event_id, 'dm_rfstdtc', null);
+			$trtinfo['regimen'] = $regimen = strtolower(get_single_field($record, $project_id, $baseline_event_id, 'rand_suppex_randreg', null));
+			$trtinfo['dur'] = $duration = get_single_field($record, $project_id, $baseline_event_id, $regimen . '_suppex_trtdur', null);
+			$trtinfo['num'] = $num = substr($duration, strpos($duration, 'P') + 1, strlen($duration) - 2);
+			$trtinfo['arm'] = $num . ' Weeks';
+			/**
+			 * check to see if the subject has an existing schedule on an existing arm
+			 */
+			$sub = "SELECT DISTINCT e.arm_id from redcap_events_calendar c, redcap_events_metadata e WHERE c.project_id = $project_id AND c.record = '$record' AND c.event_id = e.event_id";
+			$sched_arm_result = db_query("SELECT arm_name FROM redcap_events_arms WHERE project_id = $project_id AND arm_id IN (" . pre_query($sub) . ") LIMIT 1");
+			if ($sched_arm_result) {
+				$trtinfo['timing_arm'] = db_result($sched_arm_result, 0, 'arm_name');
+				db_free_result($sched_arm_result);
+			}
+			$timing_arm_result = db_query("SELECT arm_num FROM redcap_events_arms WHERE project_id = $project_id AND arm_name = '{$trtinfo['arm']}' LIMIT 1");
+			if ($timing_arm_result) {
+				$trtinfo['timing_arm_num'] = db_result($timing_arm_result, 0, 'arm_num');
+				db_free_result($timing_arm_result);
+			}
+			$q = db_query("SELECT * from redcap_events_metadata m, redcap_events_arms a WHERE a.project_id = $project_id AND a.arm_id = m.arm_id AND a.arm_num = {$trtinfo['timing_arm_num']} order by m.day_offset, m.descrip");
+			if ($q) {
+				while ($q_row = db_fetch_assoc($q)) {
+					$trtinfo['timing_events'][$q_row['descrip']] = $q_row['event_id'];
+					$trtinfo['timing_offsets'][$q_row['descrip']] = $q_row['day_offset'];
+					$trtinfo['timing_min'][$q_row['descrip']] = $q_row['offset_min'];
+					$trtinfo['timing_max'][$q_row['descrip']] = $q_row['offset_max'];
+				}
+			}
+		}
+		return $trtinfo;
+	}
+
+	/**
+	 * @param $record
+	 * @param $debug
+	 */
+	public static function setTrtDuration($record, $debug)
+	{
+		/**
+		 * derive treatment duration and therefore arm from randomized treatment and duration selected in this form
+		 */
+		global $Proj, $project_id;
+		$first_event_id = $Proj->firstEventId;
+		$trt = self::getTrtInfo($record);
+		if ($debug) {
+			error_log(print_r($trt, true));
+		}
+		$prescribed_duration = get_single_field($record, $project_id, $first_event_id, 'dm_suppex_trtdur', null);
+		if (!isset($prescribed_duration) || $prescribed_duration == '') {
+			update_field_compare($record, $project_id, $first_event_id, $trt['dur'], $prescribed_duration, 'dm_suppex_trtdur', $debug);
 		}
 	}
 }

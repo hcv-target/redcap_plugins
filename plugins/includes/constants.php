@@ -12,7 +12,7 @@ $ie_criteria_labels = array('INCL01' => 'Subject unable to provide Informed Cons
 $tx_fragment_labels = array('ifn' => 'interferon', 'rib' => 'ribavirin', 'rbv' => 'ribavirin', 'tvr' => 'telaprevir', 'boc' => 'boceprevir', 'sim' => 'simeprevir', 'sof' => 'sofosbuvir', 'dcv' => 'daclatasvir', 'hvn' => 'harvoni', 'vpk' => 'ombitasvir', 'dbv' => 'dasabuvir', 'zep' => 'zepatier');
 $tx_prefixes = array('ifn', 'rib', 'tvr', 'boc', 'sim', 'sof', 'dcv', 'hvn', 'vpk', 'dbv', 'zep');
 $tx_prefixes_bms = array('rbv', 'sof', 'dcv');
-$regimen_fields = array('reg_suppcm_regimen', 'ifn_cmstdtc', 'rib_cmstdtc', 'rbv_cmstdtc', 'boc_cmstdtc', 'tvr_cmstdtc', 'sim_cmstdtc', 'sof_cmstdtc', 'sof_exstdtc', 'dcv_exstdtc', 'dcv_cmstdtc', 'hvn_cmstdtc', 'vpk_cmstdtc', 'dbv_cmstdtc', 'zep_cmstdtc');
+$regimen_fields = array('reg_suppcm_regimen', 'ifn_cmstdtc', 'rib_cmstdtc', 'rbv_cmstdtc', 'rbv_exstdtc', 'boc_cmstdtc', 'tvr_cmstdtc', 'sim_cmstdtc', 'sof_cmstdtc', 'sof_exstdtc', 'dcv_exstdtc', 'dcv_cmstdtc', 'hvn_cmstdtc', 'hvn_exstdtc', 'vpk_cmstdtc', 'vpk_exstdtc', 'dbv_cmstdtc', 'dbv_exstdtc', 'zep_cmstdtc', 'zep_exstdtc');
 $intended_regimens = array(
 	'HVN' => array('HVN' => 'Harvoni'),
 	'HVN_RBV' => array('HVN/RBV' => 'Harvoni/Ribavirin'),
@@ -80,7 +80,7 @@ $labs_array = array(
 /**
  * VARS
  */
-$dm_array = array('dm_rfstdtc', 'dm_brthyr', 'dm_brthdtc', 'dm_race', 'dm_sex', 'age_suppvs_age', 'dis_suppfa_txendt', 'dis_dsstdy', 'hcv_suppfa_svr12dt', 'hcv_suppfa_svr24dt', 'eot_dsterm', 'dm_actarm', 'dm_actarmcd');
+$dm_array = array('dm_rfstdtc', 'dm_rfxstdtc', 'dm_brthyr', 'dm_brthdtc', 'dm_race', 'dm_sex', 'age_suppvs_age', 'dis_suppfa_txendt', 'dis_dsstdy', 'hcv_suppfa_svr12dt', 'hcv_suppfa_svr24dt', 'eot_dsterm', 'dm_actarm', 'dm_actarmcd');
 $tx_array = array('ifn_cmstdtc', 'rib_cmstdtc', 'tvr_cmstdtc', 'sof_cmstdtc', 'sim_cmstdtc', 'boc_cmstdtc', 'dcv_cmstdtc', 'hvn_cmstdtc', 'vpk_cmstdtc', 'dbv_cmstdtc', 'zep_cmstdtc', 'hvn_exstdtc', 'vpk_exstdtc', 'dbv_exstdtc', 'zep_exstdtc', 'rbv_exstdtc');
 $bmi_array = array('height_vsorresu', 'height_vsorres', 'height_suppvs_htcm', 'weight_vsorresu', 'weight_vsorres', 'weight_suppvs_wtkg', 'bmi_suppvs_bmi');
 $daa_array = array('tvr_cmstdtc', 'sof_cmstdtc', 'sim_cmstdtc', 'boc_cmstdtc', 'dcv_cmstdtc', 'hvn_cmstdtc', 'vpk_cmstdtc', 'dbv_cmstdtc', 'zep_cmstdtc', 'hvn_exstdtc', 'vpk_exstdtc', 'dbv_exstdtc', 'zep_exstdtc');
